@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "+W2beX2VRxbdJW7kEIxCfV/rjoQ=",
+			"path": "github.com/bitmark-inc/go-bitmarklib",
+			"revision": "5f4e12b9aae8af5a52af6bdd9394fb8616335a76",
+			"revisionTime": "2017-09-04T09:39:40Z"
+		}
+	],
+	"rootPath": "github.com/bitmark-inc/bitmark-sdk-go"
+}
