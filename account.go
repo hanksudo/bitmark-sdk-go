@@ -31,16 +31,26 @@ type Account struct {
 	EncrKeyPair *bitmarklib.EncrKeyPair
 }
 
-func NewAccount(sess *Session) (*Account, error) {
+func (s *Session) NewAccount() (*Account, error) {
 	var rootSeed [32]byte
 	if _, err := io.ReadFull(rand.Reader, rootSeed[:]); err != nil {
 		return nil, err
 	}
 
-	return accountFromRootSeed(rootSeed, sess.chain == Testnet, 1)
+	return accountFromRootSeed(rootSeed, s.chain == Testnet, 1)
 }
 
 func AccountFromMasterKey(masterKey [33]byte) (*Account, error) {
+	rootSeed, isTest, version := parseMasterKey(masterKey)
+	return accountFromRootSeed(rootSeed, isTest, version)
+}
+
+func AccountFromRecoveryPhrase(phrase []string) (*Account, error) {
+	masterKey, err := phraseToBytes(phrase)
+	if err != nil {
+		return nil, err
+	}
+
 	rootSeed, isTest, version := parseMasterKey(masterKey)
 	return accountFromRootSeed(rootSeed, isTest, version)
 }
@@ -66,6 +76,11 @@ func accountFromRootSeed(rootSeed [32]byte, isTest bool, version int) (*Account,
 
 func (a *Account) AccountNumber() string {
 	return a.AuthKeyPair.Account().String()
+}
+
+func (a *Account) RecoveryPhrase() []string {
+	key := constructMasterKey(a.rootSeed, a.IsTest, 1)
+	return bytesToPhrase(key)
 }
 
 func parseMasterKey(masterKey [33]byte) (rootSeed [32]byte, test bool, version int) {

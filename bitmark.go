@@ -1,6 +1,9 @@
 package bitmarksdk
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Bitmark struct {
 	Id          string    `json:"id"`
@@ -22,4 +25,18 @@ type Holder struct {
 	Owner     string    `json:"owner"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func (b *Bitmark) Update(sess *Session) error {
+	var r struct {
+		Bitmark Bitmark `json:"bitmark"`
+	}
+
+	path := fmt.Sprintf("/v1/bitmarks/%s?pending=true", b.Id)
+	if err := submitAPIRequest(sess, "GET", path, nil, &r); err != nil {
+		return err
+	}
+
+	*b = r.Bitmark
+	return nil
 }

@@ -16,16 +16,21 @@ const (
 	Testnet chain = iota
 )
 
+var (
+	client = new(http.Client)
+
+	domain = map[chain]string{
+		Livenet: "https://api.bitmark.com",
+		Testnet: "https://api.test.bitmark.com",
+	}
+)
+
 type Session struct {
 	chain chain
 
 	apiId     string
 	apiSecret string
 }
-
-var (
-	client = new(http.Client)
-)
 
 func NewSession(chain chain, apiId, apiSecret string) *Session {
 	return &Session{chain, apiId, apiSecret}
@@ -38,12 +43,7 @@ func submitAPIRequest(s *Session, method, path string, body interface{}, reply i
 		return err
 	}
 
-	domain := "https://api.devel.bitmark.com"
-	if s.chain == Livenet {
-		domain = "https://api.bitmark.com"
-	}
-	url := fmt.Sprintf("%s%s", domain, path)
-	fmt.Println(url)
+	url := fmt.Sprintf("%s%s", domain[s.chain], path)
 	req, err := http.NewRequest(method, url, b)
 	if nil != err {
 		return err
@@ -60,7 +60,6 @@ func submitAPIRequest(s *Session, method, path string, body interface{}, reply i
 		return err
 	}
 
-	// TODO: unify meessage
 	if resp.StatusCode/100 != 2 {
 		return errors.New(string(data))
 	}
