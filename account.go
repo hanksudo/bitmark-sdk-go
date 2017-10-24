@@ -1,114 +1,111 @@
 package bitmarksdk
 
 import (
-	"crypto/rand"
-	"io"
+	"encoding/hex"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
-	bitmarklib "github.com/bitmark-inc/go-bitmarklib"
-	"golang.org/x/crypto/nacl/secretbox"
+	"golang.org/x/crypto/sha3"
 )
 
-var (
-	seedNonce = [24]byte{
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	}
-	authSeedCountBM = [16]byte{
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xe7,
-	}
-	encrSeedCountBM = [16]byte{
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xe8,
-	}
+const (
+	pubkeyMask     = 0x01
+	testnetMask    = 0x02
+	algorithmShift = 4
+	checksumLength = 4
 )
 
 type Account struct {
-	rootSeed    [32]byte
-	IsTest      bool
-	AuthKeyPair *bitmarklib.KeyPair
-	EncrKeyPair *bitmarklib.EncrKeyPair
+	seed    *Seed
+	AuthKey AuthKey
+	EncrKey EncrKey
 }
 
-func (s *Session) NewAccount() (*Account, error) {
-	var rootSeed [32]byte
-	if _, err := io.ReadFull(rand.Reader, rootSeed[:]); err != nil {
-		return nil, err
-	}
-
-	return accountFromRootSeed(rootSeed, s.chain == Testnet, 1)
-}
-
-func AccountFromMasterKey(masterKey [33]byte) (*Account, error) {
-	rootSeed, isTest, version := parseMasterKey(masterKey)
-	return accountFromRootSeed(rootSeed, isTest, version)
-}
-
-func AccountFromRecoveryPhrase(phrase []string) (*Account, error) {
-	masterKey, err := phraseToBytes(phrase)
+func NewAccount(network Network) (*Account, error) {
+	seed, err := NewSeed(SeedVersion1, network)
 	if err != nil {
 		return nil, err
 	}
 
-	rootSeed, isTest, version := parseMasterKey(masterKey)
-	return accountFromRootSeed(rootSeed, isTest, version)
-}
-
-func accountFromRootSeed(rootSeed [32]byte, isTest bool, version int) (*Account, error) {
-	authSeed := createAuthSeed(rootSeed)
-	encrSeed := createEncrSeed(rootSeed)
-
-	// ed25519 for auth key
-	authKeypair, err := bitmarklib.NewKeyPairFromSeed(authSeed, isTest, bitmarklib.ED25519)
+	authKey, err := NewAuthKey(seed)
 	if err != nil {
 		return nil, err
 	}
 
-	// curve25519 for encr key
-	encrKeypair, err := bitmarklib.NewEncrKeyPairFromSeed(encrSeed)
+	encrKey, err := NewEncrKey(seed)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Account{rootSeed, isTest, authKeypair, encrKeypair}, nil
+	return &Account{seed, authKey, encrKey}, nil
 }
 
-func (a *Account) AccountNumber() string {
-	return a.AuthKeyPair.Account().String()
-}
-
-func (a *Account) RecoveryPhrase() []string {
-	key := constructMasterKey(a.rootSeed, a.IsTest, 1)
-	return bytesToPhrase(key)
-}
-
-func parseMasterKey(masterKey [33]byte) (rootSeed [32]byte, test bool, version int) {
-	keyPrefix := masterKey[0]
-	test = keyPrefix&0x01 != 0x00
-	version = int(keyPrefix >> 1)
-
-	copy(rootSeed[:], masterKey[1:])
-	return
-}
-
-func constructMasterKey(rootSeed [32]byte, test bool, version int) (masterKey [33]byte) {
-	keyPrefix := (version << 1)
-	if test {
-		keyPrefix |= 0x01
+func AccountFromSeed(s string) (*Account, error) {
+	seed, err := SeedFromBase58(s)
+	if err != nil {
+		return nil, err
 	}
 
-	copy(masterKey[:1], []byte{byte(keyPrefix)})
-	copy(masterKey[1:], rootSeed[:])
-	return
+	authKey, err := NewAuthKey(seed)
+	if err != nil {
+		return nil, err
+	}
+
+	encrKey, err := NewEncrKey(seed)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Account{seed, authKey, encrKey}, nil
 }
 
-// set nonce = 999 for creating auth seed
-func createAuthSeed(seed [32]byte) []byte {
-	return secretbox.Seal([]byte{}, authSeedCountBM[:], &seedNonce, &seed)
+// TODO
+func AccountFromRecoveryPhrase(s string) (*Account, error) {
+	return nil, nil
 }
 
-// set nonce = 1000 for creating encr seed
-func createEncrSeed(seed [32]byte) []byte {
-	return secretbox.Seal([]byte{}, encrSeedCountBM[:], &seedNonce, &seed)
+func (acct *Account) Network() Network {
+	return acct.seed.network
+}
+
+func (acct *Account) Seed() string {
+	return acct.seed.String()
+}
+
+// TODO
+func (acct *Account) RecoveryPhrase() []string {
+	return nil
+}
+
+func (acct *Account) AccountNumber() string {
+	buffer := acct.bytes()
+	checksum := sha3.Sum256(buffer)
+	buffer = append(buffer, checksum[:checksumLength]...)
+	return toBase58(buffer)
+}
+
+func (acct *Account) bytes() []byte {
+	keyVariant := byte(acct.AuthKey.Algorithm()<<algorithmShift) | pubkeyMask
+	if acct.seed.network == Testnet {
+		keyVariant |= testnetMask
+	}
+	return append([]byte{keyVariant}, acct.AuthKey.PublicKeyBytes()...)
+}
+
+func (acct *Account) signRequest(req *http.Request, parts ...string) {
+	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	parts = append(parts, ts)
+	message := strings.Join(parts, "|")
+	sig := hex.EncodeToString(acct.AuthKey.Sign([]byte(message)))
+
+	req.Header.Add("requester", acct.AccountNumber())
+	req.Header.Add("timestamp", ts)
+	req.Header.Add("signature", sig)
+}
+
+func AuthPublicKeyFromAccountNumber(acctNo string) []byte {
+	buffer := fromBase58(acctNo)
+	return buffer[:len(buffer)-checksumLength]
 }
