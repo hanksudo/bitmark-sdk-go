@@ -101,7 +101,7 @@ func (s *SessionData) UnmarshalJSON(data []byte) error {
 }
 
 func (s SessionData) String() string {
-	b, _ := json.Marshal(s)
+	b, _ := json.Marshal(&s)
 	return string(b)
 }
 
