@@ -10,20 +10,14 @@ import (
 
 var (
 	client    *http.Client
-	apidomain = map[string]string{
-		"live": "https://api.bitmark.com",
-		"test": "https://api.test.bitmark.com",
+	apidomain = map[Network]string{
+		Livenet: "https://api.bitmark.com",
+		Testnet: "https://api.test.bitmark.com",
 	}
 )
 
 func init() {
 	client = &http.Client{}
-}
-
-type Requester struct {
-	domain    string
-	requester string
-	authKey   AuthKey
 }
 
 func submitRequest(req *http.Request, reply interface{}) ([]byte, error) {
@@ -37,13 +31,13 @@ func submitRequest(req *http.Request, reply interface{}) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(string(data))
-	// TODO
+
 	if resp.StatusCode/100 != 2 {
 		var m struct {
-			Message string
+			Message string `json:"message"`
 		}
 		json.Unmarshal(data, &m)
+		fmt.Println("error: ", m.Message)
 		return nil, errors.New(m.Message)
 	}
 

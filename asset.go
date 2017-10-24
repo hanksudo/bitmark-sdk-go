@@ -3,6 +3,7 @@ package bitmarksdk
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -15,8 +16,8 @@ import (
 type Accessibility string
 
 const (
-	Public  = Accessibility("public")
-	Private = Accessibility("private")
+	Public  Accessibility = "public"
+	Private Accessibility = "private"
 )
 
 type assetFile struct {
@@ -106,16 +107,12 @@ func uploadAsset(acct *Account, af *assetFile, acs Accessibility) error {
 	}
 
 	// TODO
-	req, _ := http.NewRequest("POST", "http://0.0.0.0:8087/v1/assets", body)
+	// req, _ := http.NewRequest("POST", "http://0.0.0.0:8087/v1/assets", body)
+	req, _ := http.NewRequest("POST", "https://api.devel.bitmark.com/v1/assets", body)
 
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
 
-	acct.signRequest(req,
-		"uploadAsset",
-		acct.AccountNumber(),
-		assetId,
-		// strconv.FormatInt(time.Now().UnixNano()/1000000, 10),
-	)
+	acct.signRequest(req, "uploadAsset", assetId)
 
 	_, err = submitRequest(req, nil)
 	return err
@@ -126,20 +123,51 @@ func computeAssetId(fingerprint string) string {
 	return hex.EncodeToString(assetIndex[:])
 }
 
-func downloadAsset(bitmarkId string) ([]byte, error) {
-	// req, _ := http.NewRequest("GET", fmt.Sprintf("%s/bitmarks/%s/asset", r.domain, bitmarkId), nil)
-	//
-	// var info assetAccessInfo
-	// if _, err := submitRequest(req, &info); err != nil {
-	// 	return nil, err
-	// }
-	//
-	// req, _ = http.NewRequest("GET", info.URL, nil)
-	// data, err := submitRequest(req, &info)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// return data, nil
-	return nil, nil
+func downloadAsset(acct *Account, bitmarkId string) ([]byte, error) {
+	req, _ := http.NewRequest("GET", fmt.Sprintf("https://api.devel.bitmarks.com/v1/bitmarks/%s/asset", bitmarkId), nil)
+
+	var result struct {
+		URL      string       `json:"url"`
+		Sender   string       `json:"string"`
+		SessData *SessionData `json:"session_data"`
+	}
+	if _, err := submitRequest(req, &result); err != nil {
+		return nil, err
+	}
+
+	req, _ = http.NewRequest("GET", result.URL, nil)
+	content, err := submitRequest(req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.SessData == nil {
+		return content, nil
+	}
+
+	encrPubkey, _ := getEncrPubkey(result.Sender)
+	dataKey, err := dataKeyFromSessionData(acct, result.SessData, encrPubkey)
+	if err != nil {
+		return nil, err
+	}
+
+	plaintext, err := dataKey.Decrypt(content)
+	if err != nil {
+		return nil, err
+	}
+
+	return plaintext, nil
+}
+
+func getEncrPubkey(acctNo string) ([]byte, error) {
+	req, _ := http.NewRequest("GET", fmt.Sprintf("https://key.assets.devel.bitmark.com/%s", acctNo), nil)
+
+	var result struct {
+		Key string `json:"encryption_pubkey"`
+	}
+	if _, err := submitRequest(req, &result); err != nil {
+		return nil, err
+	}
+
+	return hex.DecodeString(result.Key)
 }

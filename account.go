@@ -94,9 +94,14 @@ func (acct *Account) bytes() []byte {
 	return append([]byte{keyVariant}, acct.AuthKey.PublicKeyBytes()...)
 }
 
-func (acct *Account) signRequest(req *http.Request, parts ...string) {
+func (acct *Account) signRequest(req *http.Request, action, resource string) {
 	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	parts = append(parts, ts)
+	parts := []string{
+		action,
+		resource,
+		acct.AccountNumber(),
+		ts,
+	}
 	message := strings.Join(parts, "|")
 	sig := hex.EncodeToString(acct.AuthKey.Sign([]byte(message)))
 
