@@ -101,8 +101,8 @@ func NewAPIClient(network Network) *APIClient {
 
 	switch network {
 	case Testnet:
-		api.apiServer = "api.devel.bitmark.com"
-		api.assetsServer = "assets.devel.bitmark.com"
+		api.apiServer = "api.test.bitmark.com"
+		api.assetsServer = "assets.test.bitmark.com"
 	case Livenet:
 		api.apiServer = "api.bitmark.com"
 		api.assetsServer = "assets.bitmark.com"
@@ -159,7 +159,6 @@ func (c *APIClient) UploadAsset(acct *Account, af *assetFile, acs Accessibility)
 		Host:   c.apiServer,
 		Path:   "/v1/assets",
 	}
-	fmt.Println(u.String())
 	req, _ := NewAPIRequest("POST", u.String(), body)
 
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
@@ -199,14 +198,13 @@ func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, erro
 
 	var result struct {
 		URL      string       `json:"url"`
-		Sender   string       `json:"string"`
+		Sender   string       `json:"sender"`
 		SessData *SessionData `json:"session_data"`
 	}
 	if _, err := c.submitRequest(req, &result); err != nil {
 		return nil, err
 	}
 
-	fmt.Println("result:", result)
 	req, _ = NewAPIRequest("GET", result.URL, nil)
 	content, err := c.submitRequest(req, nil)
 	if err != nil {
@@ -217,7 +215,10 @@ func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, erro
 		return content, nil
 	}
 
-	encrPubkey, _ := c.getEncPubkey(result.Sender)
+	encrPubkey, err := c.getEncPubkey(result.Sender)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
+	}
 	dataKey, err := dataKeyFromSessionData(acct, result.SessData, encrPubkey)
 	if err != nil {
 		return nil, err
@@ -248,6 +249,31 @@ func (c *APIClient) getEncPubkey(acctNo string) ([]byte, error) {
 	}
 
 	return hex.DecodeString(result.Key)
+}
+
+func (c *APIClient) setEncPubkey(acct *Account) error {
+	u := url.URL{
+		Scheme: "https",
+		Host:   c.apiServer,
+		Path:   fmt.Sprintf("/v1/encryption_keys/%s", acct.AccountNumber()),
+	}
+
+	signature := hex.EncodeToString(acct.AuthKey.Sign(acct.EncrKey.PublicKeyBytes()))
+
+	reqBody := map[string]string{
+		"encryption_pubkey": fmt.Sprintf("%064x", acct.EncrKey.PublicKeyBytes()),
+		"signature":         signature,
+	}
+
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(reqBody)
+	if err != nil {
+		return err
+	}
+
+	req, _ := NewAPIRequest("POST", u.String(), &buf)
+	_, err = c.submitRequest(req, nil)
+	return err
 }
 
 func (c *APIClient) updateSession(acct *Account, bitmarkId, receiver string, data *SessionData) error {
