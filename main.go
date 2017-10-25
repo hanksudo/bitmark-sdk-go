@@ -6,7 +6,7 @@ func (acct *Account) IssueNewBitmarks(fileURL string, acs Accessibility, propert
 		return nil, err
 	}
 
-	if e := uploadAsset(acct, af, acs); e != nil {
+	if err := acct.api.UploadAsset(acct, af, acs); err != nil {
 		return nil, err
 	}
 

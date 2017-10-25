@@ -19,6 +19,8 @@ const (
 
 type Account struct {
 	seed    *Seed
+	network Network
+	api     *APIClient
 	AuthKey AuthKey
 	EncrKey EncrKey
 }
@@ -39,7 +41,9 @@ func NewAccount(network Network) (*Account, error) {
 		return nil, err
 	}
 
-	return &Account{seed, authKey, encrKey}, nil
+	apiClient := NewAPIClient(network)
+
+	return &Account{seed, network, apiClient, authKey, encrKey}, nil
 }
 
 func AccountFromSeed(s string) (*Account, error) {
@@ -58,7 +62,9 @@ func AccountFromSeed(s string) (*Account, error) {
 		return nil, err
 	}
 
-	return &Account{seed, authKey, encrKey}, nil
+	apiClient := NewAPIClient(seed.network)
+
+	return &Account{seed, seed.network, apiClient, authKey, encrKey}, nil
 }
 
 // TODO
@@ -113,4 +119,8 @@ func (acct *Account) signRequest(req *http.Request, action, resource string) {
 func AuthPublicKeyFromAccountNumber(acctNo string) []byte {
 	buffer := fromBase58(acctNo)
 	return buffer[:len(buffer)-checksumLength]
+}
+
+func (a *Account) DownloadAsset(bitmarkId string) ([]byte, error) {
+	return a.api.DownloadAsset(a, bitmarkId)
 }
