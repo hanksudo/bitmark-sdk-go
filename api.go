@@ -223,3 +223,28 @@ func (c *APIClient) getEncPubkey(acctNo string) ([]byte, error) {
 
 	return hex.DecodeString(result.Key)
 }
+
+func (c *APIClient) setEncPubkey(acct *Account) error {
+	u := url.URL{
+		Scheme: "https",
+		Host:   c.apiServer,
+		Path:   fmt.Sprintf("/v1/encryption_keys/%s", acct.AccountNumber()),
+	}
+
+	signature := hex.EncodeToString(acct.AuthKey.Sign(acct.EncrKey.PublicKeyBytes()))
+
+	reqBody := map[string]string{
+		"encryption_pubkey": fmt.Sprintf("%064x", acct.EncrKey.PublicKeyBytes()),
+		"signature":         signature,
+	}
+
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(reqBody)
+	if err != nil {
+		return err
+	}
+
+	req, _ := NewAPIRequest("POST", u.String(), &buf)
+	_, err = c.submitRequest(req, nil)
+	return err
+}

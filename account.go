@@ -42,8 +42,12 @@ func NewAccount(network Network) (*Account, error) {
 	}
 
 	apiClient := NewAPIClient(network)
-
-	return &Account{seed, network, apiClient, authKey, encrKey}, nil
+	account := &Account{seed, network, apiClient, authKey, encrKey}
+	err = account.api.setEncPubkey(account)
+	if err != nil {
+		return nil, err
+	}
+	return account, nil
 }
 
 func AccountFromSeed(s string) (*Account, error) {
