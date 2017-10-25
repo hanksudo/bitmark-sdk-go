@@ -44,7 +44,7 @@ func (r APIRequest) Sign(acct *Account, action, resource string) error {
 }
 
 func NewAPIRequest(method, url string, body io.Reader) (*APIRequest, error) {
-	r, err := http.NewRequest("POST", url, body)
+	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
