@@ -174,7 +174,7 @@ func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, erro
 
 	var result struct {
 		URL      string       `json:"url"`
-		Sender   string       `json:"string"`
+		Sender   string       `json:"sender"`
 		SessData *SessionData `json:"session_data"`
 	}
 	if _, err := c.submitRequest(req, &result); err != nil {
@@ -191,7 +191,10 @@ func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, erro
 		return content, nil
 	}
 
-	encrPubkey, _ := c.getEncPubkey(result.Sender)
+	encrPubkey, err := c.getEncPubkey(result.Sender)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
+	}
 	dataKey, err := dataKeyFromSessionData(acct, result.SessData, encrPubkey)
 	if err != nil {
 		return nil, err
