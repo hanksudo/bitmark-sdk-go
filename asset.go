@@ -91,7 +91,7 @@ func uploadAsset(acct *Account, af *assetFile, acs Accessibility) error {
 		if e != nil {
 			return err
 		}
-		sessData, e := createSessionData(acct, dataKey)
+		sessData, e := createSessionData(acct, dataKey, acct.EncrKey.PublicKeyBytes())
 		if e != nil {
 			return err
 		}

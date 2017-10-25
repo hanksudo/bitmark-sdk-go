@@ -105,8 +105,8 @@ func (s SessionData) String() string {
 	return string(b)
 }
 
-func createSessionData(acct *Account, key DataKey) (*SessionData, error) {
-	encrDataKey, err := acct.EncrKey.Encrypt(key.Bytes(), acct.EncrKey.PublicKeyBytes())
+func createSessionData(acct *Account, key DataKey, recipientEncrPubkey []byte) (*SessionData, error) {
+	encrDataKey, err := acct.EncrKey.Encrypt(key.Bytes(), recipientEncrPubkey)
 	if err != nil {
 		return nil, err
 	}

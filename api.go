@@ -26,6 +26,12 @@ type APIRequest struct {
 	*http.Request
 }
 
+type assetAccess struct {
+	URL      string       `json:"url"`
+	Sender   string       `json:"sender"`
+	SessData *SessionData `json:"session_data"`
+}
+
 func (r APIRequest) Sign(acct *Account, action, resource string) error {
 	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 	parts := []string{
@@ -44,7 +50,7 @@ func (r APIRequest) Sign(acct *Account, action, resource string) error {
 }
 
 func NewAPIRequest(method, url string, body io.Reader) (*APIRequest, error) {
-	r, err := http.NewRequest("POST", url, body)
+	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +139,7 @@ func (c *APIClient) UploadAsset(acct *Account, af *assetFile, acs Accessibility)
 		if e != nil {
 			return err
 		}
-		sessData, e := createSessionData(acct, dataKey)
+		sessData, e := createSessionData(acct, dataKey, acct.EncrKey.PublicKeyBytes())
 		if e != nil {
 			return err
 		}
@@ -161,6 +167,24 @@ func (c *APIClient) UploadAsset(acct *Account, af *assetFile, acs Accessibility)
 
 	_, err = c.submitRequest(req, nil)
 	return err
+}
+
+func (c *APIClient) getAssetAccess(acct *Account, bitmarkId string) (*assetAccess, error) {
+	u := url.URL{
+		Scheme: "https",
+		Host:   c.apiServer,
+		Path:   fmt.Sprintf("/v1/bitmarks/%s/asset", bitmarkId),
+	}
+
+	req, _ := NewAPIRequest("GET", u.String(), nil)
+	req.Sign(acct, "downloadAsset", bitmarkId)
+
+	var result assetAccess
+	if _, err := c.submitRequest(req, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, error) {
@@ -224,4 +248,66 @@ func (c *APIClient) getEncPubkey(acctNo string) ([]byte, error) {
 	}
 
 	return hex.DecodeString(result.Key)
+}
+
+func (c *APIClient) updateSession(acct *Account, bitmarkId, receiver string, data *SessionData) error {
+	body := new(bytes.Buffer)
+	json.NewEncoder(body).Encode(map[string]interface{}{
+		"bitmark_id":   bitmarkId,
+		"owner":        receiver,
+		"session_data": data,
+	})
+
+	req, _ := NewAPIRequest("POST", "http://0.0.0.0:8087/v2/session", body)
+	req.Sign(acct, "updateSession", data.String())
+	_, err := c.submitRequest(req, nil)
+	return err
+}
+
+func (c *APIClient) issue(asset *AssetRecord, issues []*IssueRecord) ([]string, error) {
+	body := new(bytes.Buffer)
+	json.NewEncoder(body).Encode(map[string]interface{}{
+		"assets": []*AssetRecord{asset},
+		"issues": issues,
+	})
+	req, _ := NewAPIRequest("POST", "https://api.devel.bitmark.com/v1/issue", body)
+
+	bitmarks := make([]struct {
+		TxId string `json:"txId"`
+	}, 0)
+	if _, err := c.submitRequest(req, &bitmarks); err != nil {
+		return nil, err
+	}
+
+	bitmarkIds := make([]string, 0)
+	for _, b := range bitmarks {
+		bitmarkIds = append(bitmarkIds, b.TxId)
+	}
+
+	return bitmarkIds, nil
+}
+
+func (c *APIClient) transfer(t *TransferRecord) (string, error) {
+	body := new(bytes.Buffer)
+	json.NewEncoder(body).Encode(map[string]interface{}{
+		"transfer": t,
+	})
+	req, _ := NewAPIRequest("POST", "https://api.devel.bitmark.com/v1/issue", body)
+
+	txs := make([]struct {
+		TxId string `json:"txId"`
+	}, 0)
+	if _, err := c.submitRequest(req, &txs); err != nil {
+		return "", err
+	}
+
+	return txs[0].TxId, nil
+}
+
+func (c *APIClient) getBitmark(bitmarkId string) (*Bitmark, error) {
+	req, _ := NewAPIRequest("GET", "https://api.devel.bitmark.com/v1/bitmarks/"+bitmarkId, nil)
+
+	var bmk Bitmark
+	_, err := c.submitRequest(req, &bmk)
+	return &bmk, err
 }
