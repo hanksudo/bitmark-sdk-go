@@ -95,8 +95,8 @@ func NewAPIClient(network Network) *APIClient {
 
 	switch network {
 	case Testnet:
-		api.apiServer = "api.devel.bitmark.com"
-		api.assetsServer = "assets.devel.bitmark.com"
+		api.apiServer = "api.test.bitmark.com"
+		api.assetsServer = "assets.test.bitmark.com"
 	case Livenet:
 		api.apiServer = "api.bitmark.com"
 		api.assetsServer = "assets.bitmark.com"
@@ -153,7 +153,6 @@ func (c *APIClient) UploadAsset(acct *Account, af *assetFile, acs Accessibility)
 		Host:   c.apiServer,
 		Path:   "/v1/assets",
 	}
-	fmt.Println(u.String())
 	req, _ := NewAPIRequest("POST", u.String(), body)
 
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
@@ -182,7 +181,6 @@ func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, erro
 		return nil, err
 	}
 
-	fmt.Println("result:", result)
 	req, _ = NewAPIRequest("GET", result.URL, nil)
 	content, err := c.submitRequest(req, nil)
 	if err != nil {
