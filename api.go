@@ -101,8 +101,9 @@ func NewAPIClient(network Network) *APIClient {
 
 	switch network {
 	case Testnet:
-		api.apiServer = "api.test.bitmark.com"
-		api.assetsServer = "assets.test.bitmark.com"
+		// TODO: move to testnet when the testing is done
+		api.apiServer = "api.devel.bitmark.com"
+		api.assetsServer = "assets.devel.bitmark.com"
 	case Livenet:
 		api.apiServer = "api.bitmark.com"
 		api.assetsServer = "assets.bitmark.com"
@@ -277,6 +278,12 @@ func (c *APIClient) setEncPubkey(acct *Account) error {
 }
 
 func (c *APIClient) updateSession(acct *Account, bitmarkId, receiver string, data *SessionData) error {
+	u := url.URL{
+		Scheme: "https",
+		Host:   c.apiServer,
+		Path:   "/v2/session",
+	}
+
 	body := new(bytes.Buffer)
 	json.NewEncoder(body).Encode(map[string]interface{}{
 		"bitmark_id":   bitmarkId,
@@ -284,7 +291,7 @@ func (c *APIClient) updateSession(acct *Account, bitmarkId, receiver string, dat
 		"session_data": data,
 	})
 
-	req, _ := NewAPIRequest("POST", "http://0.0.0.0:8087/v2/session", body)
+	req, _ := NewAPIRequest("POST", u.String(), body)
 	req.Sign(acct, "updateSession", data.String())
 	_, err := c.submitRequest(req, nil)
 	return err
@@ -318,7 +325,7 @@ func (c *APIClient) transfer(t *TransferRecord) (string, error) {
 	json.NewEncoder(body).Encode(map[string]interface{}{
 		"transfer": t,
 	})
-	req, _ := NewAPIRequest("POST", "https://api.devel.bitmark.com/v1/issue", body)
+	req, _ := NewAPIRequest("POST", "https://api.devel.bitmark.com/v1/transfer", body)
 
 	txs := make([]struct {
 		TxId string `json:"txId"`
@@ -333,7 +340,9 @@ func (c *APIClient) transfer(t *TransferRecord) (string, error) {
 func (c *APIClient) getBitmark(bitmarkId string) (*Bitmark, error) {
 	req, _ := NewAPIRequest("GET", "https://api.devel.bitmark.com/v1/bitmarks/"+bitmarkId, nil)
 
-	var bmk Bitmark
-	_, err := c.submitRequest(req, &bmk)
-	return &bmk, err
+	var result struct {
+		Bitmark *Bitmark
+	}
+	_, err := c.submitRequest(req, &result)
+	return result.Bitmark, err
 }
