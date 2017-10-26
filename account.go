@@ -1,6 +1,11 @@
 package bitmarksdk
 
-import "golang.org/x/crypto/sha3"
+import (
+	"bytes"
+	"strings"
+
+	"golang.org/x/crypto/sha3"
+)
 
 const (
 	pubkeyMask     = 0x01
@@ -63,9 +68,23 @@ func AccountFromSeed(s string) (*Account, error) {
 	return &Account{seed, seed.network, apiClient, authKey, encrKey}, nil
 }
 
-// TODO
 func AccountFromRecoveryPhrase(s string) (*Account, error) {
-	return nil, nil
+	b, err := phraseToBytes(strings.Split(s, " "))
+	if err != nil {
+		return nil, err
+	}
+
+	network := Livenet
+	if b[0] == 0x01 {
+		network = Testnet
+	}
+	seed := Seed{
+		SeedVersion1,
+		network,
+		b[1:],
+	}
+
+	return AccountFromSeed(seed.String())
 }
 
 func (acct *Account) Network() Network {
@@ -76,9 +95,17 @@ func (acct *Account) Seed() string {
 	return acct.seed.String()
 }
 
-// TODO
 func (acct *Account) RecoveryPhrase() []string {
-	return nil
+	buf := new(bytes.Buffer)
+	switch acct.Network() {
+	case Livenet:
+		buf.Write([]byte{00})
+	case Testnet:
+		buf.Write([]byte{01})
+	}
+	buf.Write(acct.seed.core)
+	phrase, _ := bytesToPhrase(buf.Bytes())
+	return phrase
 }
 
 func (acct *Account) AccountNumber() string {
