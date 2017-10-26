@@ -1,14 +1,6 @@
 package bitmarksdk
 
-import (
-	"encoding/hex"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
-
-	"golang.org/x/crypto/sha3"
-)
+import "golang.org/x/crypto/sha3"
 
 const (
 	pubkeyMask     = 0x01
@@ -104,27 +96,7 @@ func (acct *Account) bytes() []byte {
 	return append([]byte{keyVariant}, acct.AuthKey.PublicKeyBytes()...)
 }
 
-func (acct *Account) signRequest(req *http.Request, action, resource string) {
-	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	parts := []string{
-		action,
-		resource,
-		acct.AccountNumber(),
-		ts,
-	}
-	message := strings.Join(parts, "|")
-	sig := hex.EncodeToString(acct.AuthKey.Sign([]byte(message)))
-
-	req.Header.Add("requester", acct.AccountNumber())
-	req.Header.Add("timestamp", ts)
-	req.Header.Add("signature", sig)
-}
-
 func AuthPublicKeyFromAccountNumber(acctNo string) []byte {
 	buffer := fromBase58(acctNo)
 	return buffer[:len(buffer)-checksumLength]
-}
-
-func (a *Account) DownloadAsset(bitmarkId string) ([]byte, error) {
-	return a.api.DownloadAsset(a, bitmarkId)
 }

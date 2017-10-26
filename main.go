@@ -31,7 +31,7 @@ func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error)
 		return "", err
 	}
 
-	senderPublicKey, err := getEncrPubkey(access.Sender)
+	senderPublicKey, err := acct.api.getEncPubkey(access.Sender)
 	if err != nil {
 		return "", err
 	}
@@ -41,7 +41,7 @@ func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error)
 		return "", err
 	}
 
-	recipientEncrPubkey, err := getEncrPubkey(receiver)
+	recipientEncrPubkey, err := acct.api.getEncPubkey(receiver)
 	if err != nil {
 		return "", err
 	}
@@ -71,4 +71,8 @@ func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error)
 	}
 
 	return acct.api.transfer(tr)
+}
+
+func (a *Account) DownloadAsset(bitmarkId string) ([]byte, error) {
+	return a.api.DownloadAsset(a, bitmarkId)
 }
