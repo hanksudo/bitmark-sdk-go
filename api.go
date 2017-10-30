@@ -303,7 +303,13 @@ func (c *APIClient) issue(asset *AssetRecord, issues []*IssueRecord) ([]string, 
 		"assets": []*AssetRecord{asset},
 		"issues": issues,
 	})
-	req, _ := NewAPIRequest("POST", "https://api.devel.bitmark.com/v1/issue", body)
+
+	u := url.URL{
+		Scheme: "https",
+		Host:   c.apiServer,
+		Path:   "/v1/issue",
+	}
+	req, _ := NewAPIRequest("POST", u.String(), body)
 
 	bitmarks := make([]struct {
 		TxId string `json:"txId"`
@@ -325,7 +331,13 @@ func (c *APIClient) transfer(t *TransferRecord) (string, error) {
 	json.NewEncoder(body).Encode(map[string]interface{}{
 		"transfer": t,
 	})
-	req, _ := NewAPIRequest("POST", "https://api.devel.bitmark.com/v1/transfer", body)
+
+	u := url.URL{
+		Scheme: "https",
+		Host:   c.apiServer,
+		Path:   "/v1/transfer",
+	}
+	req, _ := NewAPIRequest("POST", u.String(), body)
 
 	txs := make([]struct {
 		TxId string `json:"txId"`
@@ -338,7 +350,12 @@ func (c *APIClient) transfer(t *TransferRecord) (string, error) {
 }
 
 func (c *APIClient) getBitmark(bitmarkId string) (*Bitmark, error) {
-	req, _ := NewAPIRequest("GET", "https://api.devel.bitmark.com/v1/bitmarks/"+bitmarkId, nil)
+	u := url.URL{
+		Scheme: "https",
+		Host:   c.apiServer,
+		Path:   "/v1/bitmarks/" + bitmarkId,
+	}
+	req, _ := NewAPIRequest("GET", u.String(), nil)
 
 	var result struct {
 		Bitmark *Bitmark
