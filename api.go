@@ -73,8 +73,7 @@ func (api *APIClient) submitRequest(req *APIRequest, reply interface{}) ([]byte,
 		var m struct {
 			Message string `json:"message"`
 		}
-		err := json.Unmarshal(data, &m)
-		if err != nil {
+		if e := json.Unmarshal(data, &m); e != nil {
 			return nil, errors.New(string(data))
 		}
 		return nil, errors.New(m.Message)

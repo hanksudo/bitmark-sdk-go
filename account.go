@@ -15,9 +15,8 @@ const (
 )
 
 type Account struct {
-	seed    *Seed
-	network Network
 	api     *APIClient
+	seed    *Seed
 	AuthKey AuthKey
 	EncrKey EncrKey
 }
@@ -39,7 +38,8 @@ func NewAccount(network Network) (*Account, error) {
 	}
 
 	apiClient := NewAPIClient(network)
-	account := &Account{seed, network, apiClient, authKey, encrKey}
+
+	account := &Account{apiClient, seed, authKey, encrKey}
 	err = account.api.setEncPubkey(account)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func AccountFromSeed(s string) (*Account, error) {
 
 	apiClient := NewAPIClient(seed.network)
 
-	return &Account{seed, seed.network, apiClient, authKey, encrKey}, nil
+	return &Account{apiClient, seed, authKey, encrKey}, nil
 }
 
 func AccountFromRecoveryPhrase(s string) (*Account, error) {
