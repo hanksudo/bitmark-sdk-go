@@ -12,14 +12,15 @@ import (
 )
 
 var (
-	cfg *config
-	log *logger.L
+	cfg    *config
+	netork sdk.Network
+	log    *logger.L
 )
 
 type config struct {
-	Network sdk.Network `hcl:"network"`
-	Port    int         `hcl:"port"`
-	DataDir string      `hcl:"datadir"`
+	Chain   string `hcl:"network"`
+	Port    int    `hcl:"port"`
+	DataDir string `hcl:"datadir"`
 }
 
 func init() {
@@ -37,6 +38,11 @@ func init() {
 		Levels:    map[string]string{"DEFAULT": "info"},
 	}); err != nil {
 		panic(fmt.Sprintf("logger initialization failed: %s", err))
+	}
+
+	netork = sdk.Livenet
+	if cfg.Chain == "test" {
+		netork = sdk.Testnet
 	}
 
 	log = logger.New("")

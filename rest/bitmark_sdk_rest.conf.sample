@@ -1,6 +1,6 @@
 # select the chain of the network
-#network=livenet
-network = "testnet"
+#chain=live
+chain = "test"
 
 # specify the port to run Bitmark trade service
 port = 8080

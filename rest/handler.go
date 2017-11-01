@@ -9,7 +9,7 @@ import (
 
 func handleCreateAccount() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		acct, _ := sdk.NewAccount(cfg.Network)
+		acct, _ := sdk.NewAccount(netork)
 
 		c.JSON(http.StatusOK, gin.H{
 			"account_number":  acct.AccountNumber(),
