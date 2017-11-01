@@ -219,7 +219,8 @@ func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
 	}
-	dataKey, err := dataKeyFromSessionData(acct, result.SessData, encrPubkey)
+	authPubkey := AuthPublicKeyFromAccountNumber(result.Sender)
+	dataKey, err := dataKeyFromSessionData(acct, result.SessData, encrPubkey, authPubkey)
 	if err != nil {
 		return nil, err
 	}
