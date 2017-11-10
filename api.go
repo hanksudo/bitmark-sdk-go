@@ -159,7 +159,7 @@ func (c *APIClient) UploadAsset(acct *Account, af *assetFile, acs Accessibility)
 		Host:   c.apiServer,
 		Path:   "/v1/assets",
 	}
-	req, _ := NewAPIRequest("POST", u.String(), body)
+	req, err := NewAPIRequest("POST", u.String(), body)
 
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
 	req.Sign(acct, "uploadAsset", assetId)
@@ -219,8 +219,8 @@ func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
 	}
-	authPubkey := AuthPublicKeyFromAccountNumber(result.Sender)
-	dataKey, err := dataKeyFromSessionData(acct, result.SessData, encrPubkey, authPubkey)
+
+	dataKey, err := dataKeyFromSessionData(acct, result.SessData, encrPubkey)
 	if err != nil {
 		return nil, err
 	}

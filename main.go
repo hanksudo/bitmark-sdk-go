@@ -37,8 +37,7 @@ func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error)
 			return "", err
 		}
 
-		senderAuthPubkey := AuthPublicKeyFromAccountNumber(access.Sender)
-		dataKey, err := dataKeyFromSessionData(acct, access.SessData, senderPublicKey, senderAuthPubkey)
+		dataKey, err := dataKeyFromSessionData(acct, access.SessData, senderPublicKey)
 		if err != nil {
 			return "", err
 		}

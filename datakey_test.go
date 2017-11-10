@@ -71,20 +71,14 @@ func TestSessionData(t *testing.T) {
 	data, _ := createSessionData(sender, dataKey, recipient.EncrKey.PublicKeyBytes())
 
 	// the recipient CAN decrypt the data key
-	restoredDataKey, _ := dataKeyFromSessionData(recipient, data, sender.EncrKey.PublicKeyBytes(), sender.AuthKey.PublicKeyBytes())
+	restoredDataKey, _ := dataKeyFromSessionData(recipient, data, sender.EncrKey.PublicKeyBytes())
 	if bytes.Compare(restoredDataKey.Bytes(), dataKey.Bytes()) != 0 ||
 		restoredDataKey.Algorithm() != dataKey.Algorithm() {
 		t.Fail()
 	}
 
 	// the outlier CANNOT decrypt the data key
-	_, err := dataKeyFromSessionData(outlier, data, sender.EncrKey.PublicKeyBytes(), sender.AuthKey.PublicKeyBytes())
-	if err == nil {
-		t.Fail()
-	}
-
-	// the session data MUST come from the correct sender
-	_, err = dataKeyFromSessionData(recipient, data, sender.EncrKey.PublicKeyBytes(), outlier.AuthKey.PublicKeyBytes())
+	_, err := dataKeyFromSessionData(outlier, data, sender.EncrKey.PublicKeyBytes())
 	if err == nil {
 		t.Fail()
 	}

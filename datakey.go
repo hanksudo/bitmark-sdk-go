@@ -8,7 +8,6 @@ import (
 	"io"
 
 	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/ed25519"
 )
 
 const (
@@ -79,26 +78,20 @@ func NewDataKey() (DataKey, error) {
 }
 
 type SessionData struct {
-	EncryptedDataKey          []byte
-	EncryptedDataKeySignature []byte
-	DataKeySignature          []byte
-	DataKeyAlgorithm          string
+	EncryptedDataKey []byte
+	DataKeyAlgorithm string
 }
 
 type encodedSessionData struct {
-	EncryptedDataKey          string `json:"enc_data_key"`
-	EncryptedDataKeySignature string `json:"enc_data_key_sig"`
-	DataKeySignature          string `json:"data_key_sig"`
-	DataKeyAlgorithm          string `json:"data_key_alg"`
+	EncryptedDataKey string `json:"enc_data_key"`
+	DataKeyAlgorithm string `json:"data_key_alg"`
 }
 
 func (s *SessionData) MarshalJSON() ([]byte, error) {
 	return json.Marshal(
 		&encodedSessionData{
-			EncryptedDataKey:          hex.EncodeToString(s.EncryptedDataKey),
-			EncryptedDataKeySignature: hex.EncodeToString(s.EncryptedDataKeySignature),
-			DataKeySignature:          hex.EncodeToString(s.DataKeySignature),
-			DataKeyAlgorithm:          s.DataKeyAlgorithm,
+			EncryptedDataKey: hex.EncodeToString(s.EncryptedDataKey),
+			DataKeyAlgorithm: s.DataKeyAlgorithm,
 		})
 }
 
@@ -109,8 +102,6 @@ func (s *SessionData) UnmarshalJSON(data []byte) error {
 	}
 
 	s.EncryptedDataKey, _ = hex.DecodeString(aux.EncryptedDataKey)
-	s.EncryptedDataKeySignature, _ = hex.DecodeString(aux.EncryptedDataKeySignature)
-	s.DataKeySignature, _ = hex.DecodeString(aux.DataKeySignature)
 	s.DataKeyAlgorithm = aux.DataKeyAlgorithm
 	return nil
 }
@@ -123,25 +114,18 @@ func (s SessionData) String() string {
 func createSessionData(acct *Account, key DataKey, recipientEncrPubkey []byte) (*SessionData, error) {
 	encrDataKey, err := acct.EncrKey.Encrypt(key.Bytes(), recipientEncrPubkey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to encrypt the data key: %v", err)
+		return nil, fmt.Errorf("data key encryption failed: %v", err)
 	}
 	return &SessionData{
-		EncryptedDataKey:          encrDataKey,
-		EncryptedDataKeySignature: acct.AuthKey.Sign(encrDataKey),
-		DataKeySignature:          acct.AuthKey.Sign(key.Bytes()),
-		DataKeyAlgorithm:          key.Algorithm(),
+		EncryptedDataKey: encrDataKey,
+		DataKeyAlgorithm: key.Algorithm(),
 	}, nil
 }
 
-func dataKeyFromSessionData(acct *Account, data *SessionData, senderEncrPubkey, senderAuthPubkey []byte) (DataKey, error) {
+func dataKeyFromSessionData(acct *Account, data *SessionData, senderEncrPubkey []byte) (DataKey, error) {
 	key, err := acct.EncrKey.Decrypt(data.EncryptedDataKey, senderEncrPubkey)
 	if err != nil {
 		return nil, fmt.Errorf("session data not for the recipient: %v", err)
-	}
-
-	if !ed25519.Verify(senderAuthPubkey, data.EncryptedDataKey, data.EncryptedDataKeySignature) ||
-		!ed25519.Verify(senderAuthPubkey, key, data.DataKeySignature) {
-		return nil, fmt.Errorf("session data not from the sender: %v", err)
 	}
 
 	// switch data.DataKeyAlgorithm to determine which algorithm to generate data key
