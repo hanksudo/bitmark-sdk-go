@@ -47,6 +47,24 @@ func NewAccount(network Network) (*Account, error) {
 	return account, nil
 }
 
+func AccountFromCore(network Network, core []byte) (*Account, error) {
+	seed := &Seed{SeedVersion1, network, core}
+
+	authKey, err := NewAuthKey(seed)
+	if err != nil {
+		return nil, err
+	}
+
+	encrKey, err := NewEncrKey(seed)
+	if err != nil {
+		return nil, err
+	}
+
+	apiClient := NewAPIClient(seed.network)
+
+	return &Account{apiClient, seed, authKey, encrKey}, nil
+}
+
 func AccountFromSeed(s string) (*Account, error) {
 	seed, err := SeedFromBase58(s)
 	if err != nil {
@@ -89,6 +107,10 @@ func AccountFromRecoveryPhrase(s string) (*Account, error) {
 
 func (acct *Account) Network() Network {
 	return acct.seed.network
+}
+
+func (acct *Account) Core() []byte {
+	return acct.seed.core
 }
 
 func (acct *Account) Seed() string {
