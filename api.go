@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -184,9 +185,23 @@ func (api *APIClient) getAssetAccess(acct *Account, bitmarkId string) (*accessBy
 //
 // -> public:  plaintext
 // -> private: ciphertext
-func (api *APIClient) getAssetContent(url string) ([]byte, error) {
-	req, _ := newAPIRequest("GET", url, nil)
-	return api.submitRequest(req, nil)
+func (api *APIClient) getAssetContent(url string) (string, []byte, error) {
+	req, _ := http.NewRequest("GET", url, nil)
+	resp, err := api.client.Do(req)
+	if err != nil {
+		return "", nil, err
+	}
+	defer resp.Body.Close()
+
+	_, params, _ := mime.ParseMediaType(resp.Header["Content-Disposition"][0])
+	filename := params["filename"]
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return filename, data, nil
 }
 
 // [ASSET] - add the session data for the bitmark receiver

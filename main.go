@@ -82,35 +82,35 @@ func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error)
 	return acct.api.transfer(tr)
 }
 
-func (acct *Account) DownloadAsset(bitmarkId string) ([]byte, error) {
+func (acct *Account) DownloadAsset(bitmarkId string) (string, []byte, error) {
 	access, err := acct.api.getAssetAccess(acct, bitmarkId)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	content, err := acct.api.getAssetContent(access.URL)
+	fileName, content, err := acct.api.getAssetContent(access.URL)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	if access.SessData == nil { // public asset
-		return content, nil
+		return fileName, content, nil
 	}
 
 	encrPubkey, err := acct.api.getEncPubkey(access.Sender)
 	if err != nil {
-		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
+		return "", nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
 	}
 
 	dataKey, err := dataKeyFromSessionData(acct, access.SessData, encrPubkey)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	plaintext, err := dataKey.Decrypt(content)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	return plaintext, nil
+	return fileName, plaintext, nil
 }
