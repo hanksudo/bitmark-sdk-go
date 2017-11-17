@@ -1,17 +1,24 @@
 package bitmarksdk
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
-func (acct *Account) IssueNewBitmarks(fileURL string, acs Accessibility, propertyName string, propertyMetadata map[string]string, quantity int) (string, []string, error) {
+func (acct *Account) IssueBitmarks(fileURL string, acs Accessibility, propertyName string, propertyMetadata map[string]string, quantity int) (string, []string, error) {
 	af, err := readAssetFile(fileURL)
 	if err != nil {
 		return "", nil, err
 	}
 
-	if err := acct.api.UploadAsset(acct, af, acs); err != nil {
-		return "", nil, err
+	if uerr := acct.api.uploadAsset(acct, af, acs); uerr != nil {
+		switch uerr.Error() {
+		case "asset should have been uploaded":
+			// TODO: might need to notify SDK users that the asset is already registered
+		default:
+			return "", nil, err
+		}
 	}
-
 	asset, err := NewAssetRecord(propertyName, af.Fingerprint, propertyMetadata, acct)
 	if err != nil {
 		return "", nil, err
@@ -52,7 +59,7 @@ func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error)
 			return "", err
 		}
 
-		err = acct.api.updateSession(acct, bitmarkId, receiver, data)
+		err = acct.api.addSessionData(acct, bitmarkId, receiver, data)
 		if err != nil {
 			return "", err
 		}
@@ -75,6 +82,35 @@ func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error)
 	return acct.api.transfer(tr)
 }
 
-func (a *Account) DownloadAsset(bitmarkId string) ([]byte, error) {
-	return a.api.DownloadAsset(a, bitmarkId)
+func (acct *Account) DownloadAsset(bitmarkId string) ([]byte, error) {
+	access, err := acct.api.getAssetAccess(acct, bitmarkId)
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := acct.api.getAssetContent(access.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	if access.SessData == nil { // public asset
+		return content, nil
+	}
+
+	encrPubkey, err := acct.api.getEncPubkey(access.Sender)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
+	}
+
+	dataKey, err := dataKeyFromSessionData(acct, access.SessData, encrPubkey)
+	if err != nil {
+		return nil, err
+	}
+
+	plaintext, err := dataKey.Decrypt(content)
+	if err != nil {
+		return nil, err
+	}
+
+	return plaintext, nil
 }

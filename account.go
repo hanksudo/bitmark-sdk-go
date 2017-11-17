@@ -2,7 +2,9 @@ package bitmarksdk
 
 import (
 	"bytes"
+	"net/http"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/sha3"
 )
@@ -37,10 +39,10 @@ func NewAccount(network Network) (*Account, error) {
 		return nil, err
 	}
 
-	apiClient := NewAPIClient(network)
+	apiClient := NewAPIClient(network, &http.Client{Timeout: 3 * time.Second})
 
 	account := &Account{apiClient, seed, authKey, encrKey}
-	err = account.api.setEncPubkey(account)
+	err = account.api.registerEncPubkey(account)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +62,7 @@ func AccountFromCore(network Network, core []byte) (*Account, error) {
 		return nil, err
 	}
 
-	apiClient := NewAPIClient(seed.network)
+	apiClient := NewAPIClient(seed.network, &http.Client{Timeout: 3 * time.Second})
 
 	return &Account{apiClient, seed, authKey, encrKey}, nil
 }
@@ -81,7 +83,7 @@ func AccountFromSeed(s string) (*Account, error) {
 		return nil, err
 	}
 
-	apiClient := NewAPIClient(seed.network)
+	apiClient := NewAPIClient(seed.network, &http.Client{Timeout: 3 * time.Second})
 
 	return &Account{apiClient, seed, authKey, encrKey}, nil
 }

@@ -16,23 +16,11 @@ import (
 	"time"
 )
 
-type APIClient struct {
-	client       *http.Client
-	apiServer    string
-	assetsServer string
-}
-
 type APIRequest struct {
 	*http.Request
 }
 
-type assetAccess struct {
-	URL      string       `json:"url"`
-	Sender   string       `json:"sender"`
-	SessData *SessionData `json:"session_data"`
-}
-
-func (r APIRequest) Sign(acct *Account, action, resource string) error {
+func (r APIRequest) Sign(acct *Account, action, resource string) {
 	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 	parts := []string{
 		action,
@@ -46,15 +34,38 @@ func (r APIRequest) Sign(acct *Account, action, resource string) error {
 	r.Header.Add("requester", acct.AccountNumber())
 	r.Header.Add("timestamp", ts)
 	r.Header.Add("signature", sig)
-	return nil
 }
 
-func NewAPIRequest(method, url string, body io.Reader) (*APIRequest, error) {
+func newAPIRequest(method, url string, body io.Reader) (*APIRequest, error) {
 	r, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
 	return &APIRequest{r}, nil
+}
+
+type APIClient struct {
+	client      *http.Client
+	apiServer   string
+	assetServer string
+}
+
+func NewAPIClient(network Network, client *http.Client) *APIClient {
+	api := &APIClient{
+		client: client,
+	}
+
+	switch network {
+	// TODO: CHANGE TO TESTNET FROM DEVNET
+	case Testnet:
+		api.apiServer = "api.devel.bitmark.com"
+		api.assetServer = "assets.devel.bitmark.com"
+	case Livenet:
+		api.apiServer = "api.bitmark.com"
+		api.assetServer = "assets.bitmark.com"
+	}
+
+	return api
 }
 
 func (api *APIClient) submitRequest(req *APIRequest, reply interface{}) ([]byte, error) {
@@ -89,29 +100,8 @@ func (api *APIClient) submitRequest(req *APIRequest, reply interface{}) ([]byte,
 	return data, nil
 }
 
-func NewAPIClient(network Network) *APIClient {
-	c := &http.Client{
-		Timeout: 3 * time.Second,
-	}
-
-	api := &APIClient{
-		client: c,
-	}
-
-	switch network {
-	case Testnet:
-		// TODO: move to testnet when the testing is done
-		api.apiServer = "api.devel.bitmark.com"
-		api.assetsServer = "assets.devel.bitmark.com"
-	case Livenet:
-		api.apiServer = "api.bitmark.com"
-		api.assetsServer = "assets.bitmark.com"
-	}
-
-	return api
-}
-
-func (c *APIClient) UploadAsset(acct *Account, af *assetFile, acs Accessibility) error {
+// [ASSET] - upload a asset file; if private asset, encryption needs to be applied
+func (api *APIClient) uploadAsset(acct *Account, af *assetFile, acs Accessibility) error {
 	assetId := computeAssetId(af.Fingerprint)
 
 	body := new(bytes.Buffer)
@@ -156,210 +146,173 @@ func (c *APIClient) UploadAsset(acct *Account, af *assetFile, acs Accessibility)
 
 	u := url.URL{
 		Scheme: "https",
-		Host:   c.apiServer,
+		Host:   api.apiServer,
 		Path:   "/v1/assets",
 	}
-	req, err := NewAPIRequest("POST", u.String(), body)
+	req, err := newAPIRequest("POST", u.String(), body)
 
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
 	req.Sign(acct, "uploadAsset", assetId)
 
-	_, err = c.submitRequest(req, nil)
+	_, err = api.submitRequest(req, nil)
 	return err
 }
 
-func (c *APIClient) getAssetAccess(acct *Account, bitmarkId string) (*assetAccess, error) {
+// [ASSET] - get the access information of an asset
+//
+// -> public:  w/o session data
+// -> private: w/  session data
+func (api *APIClient) getAssetAccess(acct *Account, bitmarkId string) (*accessByOwnership, error) {
 	u := url.URL{
 		Scheme: "https",
-		Host:   c.apiServer,
+		Host:   api.apiServer,
 		Path:   fmt.Sprintf("/v1/bitmarks/%s/asset", bitmarkId),
 	}
 
-	req, _ := NewAPIRequest("GET", u.String(), nil)
+	req, _ := newAPIRequest("GET", u.String(), nil)
 	req.Sign(acct, "downloadAsset", bitmarkId)
 
-	var result assetAccess
-	if _, err := c.submitRequest(req, &result); err != nil {
+	var result accessByOwnership
+	if _, err := api.submitRequest(req, &result); err != nil {
 		return nil, err
 	}
 
 	return &result, nil
 }
 
-func (c *APIClient) DownloadAsset(acct *Account, bitmarkId string) ([]byte, error) {
-	u := url.URL{
-		Scheme: "https",
-		Host:   c.apiServer,
-		Path:   fmt.Sprintf("/v1/bitmarks/%s/asset", bitmarkId),
-	}
-
-	req, _ := NewAPIRequest("GET", u.String(), nil)
-	req.Sign(acct, "downloadAsset", bitmarkId)
-
-	var result struct {
-		URL      string       `json:"url"`
-		Sender   string       `json:"sender"`
-		SessData *SessionData `json:"session_data"`
-	}
-	if _, err := c.submitRequest(req, &result); err != nil {
-		return nil, err
-	}
-
-	req, _ = NewAPIRequest("GET", result.URL, nil)
-	content, err := c.submitRequest(req, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if result.SessData == nil {
-		return content, nil
-	}
-
-	encrPubkey, err := c.getEncPubkey(result.Sender)
-	if err != nil {
-		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
-	}
-
-	dataKey, err := dataKeyFromSessionData(acct, result.SessData, encrPubkey)
-	if err != nil {
-		return nil, err
-	}
-
-	plaintext, err := dataKey.Decrypt(content)
-	if err != nil {
-		return nil, err
-	}
-
-	return plaintext, nil
+// [ASSET] - get the asset file content
+//
+// -> public:  plaintext
+// -> private: ciphertext
+func (api *APIClient) getAssetContent(url string) ([]byte, error) {
+	req, _ := newAPIRequest("GET", url, nil)
+	return api.submitRequest(req, nil)
 }
 
-func (c *APIClient) getEncPubkey(acctNo string) ([]byte, error) {
+// [ASSET] - add the session data for the bitmark receiver
+func (api *APIClient) addSessionData(acct *Account, bitmarkId, receiver string, data *SessionData) error {
 	u := url.URL{
 		Scheme: "https",
-		Host:   fmt.Sprintf("key.%s", c.assetsServer),
+		Host:   api.apiServer,
+		Path:   "/v2/session",
+	}
+	body := toJSONRequestBody(map[string]interface{}{
+		"bitmark_id":   bitmarkId,
+		"owner":        receiver,
+		"session_data": data,
+	})
+	req, _ := newAPIRequest("POST", u.String(), body)
+	req.Sign(acct, "updateSession", data.String())
+
+	_, err := api.submitRequest(req, nil)
+	return err
+}
+
+// [ENCRYPTION PUBLIC KEY] - register encryption public key of an account
+func (api *APIClient) registerEncPubkey(acct *Account) error {
+	u := url.URL{
+		Scheme: "https",
+		Host:   api.apiServer,
+		Path:   fmt.Sprintf("/v1/encryption_keys/%s", acct.AccountNumber()),
+	}
+	signature := hex.EncodeToString(acct.AuthKey.Sign(acct.EncrKey.PublicKeyBytes()))
+	body := toJSONRequestBody(map[string]interface{}{
+		"encryption_pubkey": fmt.Sprintf("%064x", acct.EncrKey.PublicKeyBytes()),
+		"signature":         signature,
+	})
+	req, _ := newAPIRequest("POST", u.String(), body)
+
+	_, err := api.submitRequest(req, nil)
+	return err
+}
+
+// [ENCRYPTION PUBLIC KEY] - get the encryption public key of an account
+func (api *APIClient) getEncPubkey(acctNo string) ([]byte, error) {
+	u := url.URL{
+		Scheme: "https",
+		Host:   fmt.Sprintf("key.%s", api.assetServer),
 		Path:   fmt.Sprintf("/%s", acctNo),
 	}
-
-	req, _ := NewAPIRequest("GET", u.String(), nil)
+	req, _ := newAPIRequest("GET", u.String(), nil)
 
 	var result struct {
 		Key string `json:"encryption_pubkey"`
 	}
-	if _, err := c.submitRequest(req, &result); err != nil {
+	if _, err := api.submitRequest(req, &result); err != nil {
 		return nil, err
 	}
 
 	return hex.DecodeString(result.Key)
 }
 
-func (c *APIClient) setEncPubkey(acct *Account) error {
+// [TRANSACTION] issue bitmarks
+func (api *APIClient) issue(asset *AssetRecord, issues []*IssueRecord) ([]string, error) {
 	u := url.URL{
 		Scheme: "https",
-		Host:   c.apiServer,
-		Path:   fmt.Sprintf("/v1/encryption_keys/%s", acct.AccountNumber()),
-	}
-
-	signature := hex.EncodeToString(acct.AuthKey.Sign(acct.EncrKey.PublicKeyBytes()))
-
-	reqBody := map[string]string{
-		"encryption_pubkey": fmt.Sprintf("%064x", acct.EncrKey.PublicKeyBytes()),
-		"signature":         signature,
-	}
-
-	var buf bytes.Buffer
-	err := json.NewEncoder(&buf).Encode(reqBody)
-	if err != nil {
-		return err
-	}
-
-	req, _ := NewAPIRequest("POST", u.String(), &buf)
-	_, err = c.submitRequest(req, nil)
-	return err
-}
-
-func (c *APIClient) updateSession(acct *Account, bitmarkId, receiver string, data *SessionData) error {
-	u := url.URL{
-		Scheme: "https",
-		Host:   c.apiServer,
-		Path:   "/v2/session",
-	}
-
-	body := new(bytes.Buffer)
-	json.NewEncoder(body).Encode(map[string]interface{}{
-		"bitmark_id":   bitmarkId,
-		"owner":        receiver,
-		"session_data": data,
-	})
-
-	req, _ := NewAPIRequest("POST", u.String(), body)
-	req.Sign(acct, "updateSession", data.String())
-	_, err := c.submitRequest(req, nil)
-	return err
-}
-
-func (c *APIClient) issue(asset *AssetRecord, issues []*IssueRecord) ([]string, error) {
-	body := new(bytes.Buffer)
-	json.NewEncoder(body).Encode(map[string]interface{}{
-		"assets": []*AssetRecord{asset},
-		"issues": issues,
-	})
-
-	u := url.URL{
-		Scheme: "https",
-		Host:   c.apiServer,
+		Host:   api.apiServer,
 		Path:   "/v1/issue",
 	}
-	req, _ := NewAPIRequest("POST", u.String(), body)
 
-	bitmarks := make([]struct {
-		TxId string `json:"txId"`
-	}, 0)
-	if _, err := c.submitRequest(req, &bitmarks); err != nil {
+	b := map[string]interface{}{
+		"issues": issues,
+	}
+	if asset != nil {
+		b["assets"] = []*AssetRecord{asset}
+	}
+	body := toJSONRequestBody(b)
+	req, _ := newAPIRequest("POST", u.String(), body)
+
+	result := make([]transaction, 0)
+	if _, err := api.submitRequest(req, &result); err != nil {
 		return nil, err
 	}
 
 	bitmarkIds := make([]string, 0)
-	for _, b := range bitmarks {
+	for _, b := range result {
 		bitmarkIds = append(bitmarkIds, b.TxId)
 	}
 
 	return bitmarkIds, nil
 }
 
-func (c *APIClient) transfer(t *TransferRecord) (string, error) {
-	body := new(bytes.Buffer)
-	json.NewEncoder(body).Encode(map[string]interface{}{
-		"transfer": t,
-	})
-
+// [TRANSACTION] transfer a bitmark
+func (api *APIClient) transfer(record *TransferRecord) (string, error) {
 	u := url.URL{
 		Scheme: "https",
-		Host:   c.apiServer,
+		Host:   api.apiServer,
 		Path:   "/v1/transfer",
 	}
-	req, _ := NewAPIRequest("POST", u.String(), body)
+	body := toJSONRequestBody(map[string]interface{}{
+		"transfer": record,
+	})
+	req, _ := newAPIRequest("POST", u.String(), body)
 
-	txs := make([]struct {
-		TxId string `json:"txId"`
-	}, 0)
-	if _, err := c.submitRequest(req, &txs); err != nil {
+	result := make([]transaction, 0)
+	if _, err := api.submitRequest(req, &result); err != nil {
 		return "", err
 	}
 
-	return txs[0].TxId, nil
+	return result[0].TxId, nil
 }
 
-func (c *APIClient) getBitmark(bitmarkId string) (*Bitmark, error) {
+// [REGISTRY] query a bitmark
+func (api *APIClient) getBitmark(bitmarkId string) (*Bitmark, error) {
 	u := url.URL{
 		Scheme: "https",
-		Host:   c.apiServer,
+		Host:   api.apiServer,
 		Path:   "/v1/bitmarks/" + bitmarkId,
 	}
-	req, _ := NewAPIRequest("GET", u.String(), nil)
+	req, _ := newAPIRequest("GET", u.String(), nil)
 
 	var result struct {
 		Bitmark *Bitmark
 	}
-	_, err := c.submitRequest(req, &result)
+	_, err := api.submitRequest(req, &result)
 	return result.Bitmark, err
+}
+
+func toJSONRequestBody(data map[string]interface{}) io.Reader {
+	body := new(bytes.Buffer)
+	json.NewEncoder(body).Encode(data)
+	return body
 }
