@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
-
-	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -27,8 +25,8 @@ const (
 
 // TODO: refine errors
 var (
-	ErrInvalidLength  = errors.New("text")
-	ErrInvalidAccount = errors.New("text")
+	ErrInvalidLength  = errors.New("invalid length")
+	ErrInvalidAccount = errors.New("invalid account")
 )
 
 var nonceIndex uint64
@@ -76,11 +74,6 @@ func NewAssetRecord(name, fingerprint string, metadata map[string]string, regist
 	signature := hex.EncodeToString(registrant.AuthKey.Sign(message))
 
 	return &AssetRecord{name, fingerprint, compactMetadata, registrant.AccountNumber(), signature}, nil
-}
-
-func (asset *AssetRecord) Id() string {
-	digest := sha3.Sum512([]byte(asset.Fingerprint))
-	return hex.EncodeToString(digest[:])
 }
 
 type IssueRecord struct {
@@ -211,10 +204,4 @@ type Provenance struct {
 	TxId   string `json:"tx_id"`
 	Owner  string `json:"owner"`
 	Status string `json:"status"`
-}
-
-type Asset struct {
-	Id         string `json:"id"`
-	Registrant string `json:"registrant"`
-	Status     string `json:"status"`
 }

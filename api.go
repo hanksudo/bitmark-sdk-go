@@ -102,23 +102,21 @@ func (api *APIClient) submitRequest(req *APIRequest, reply interface{}) ([]byte,
 }
 
 // [ASSET] - upload a asset file; if private asset, encryption needs to be applied
-func (api *APIClient) uploadAsset(acct *Account, af *assetFile, acs Accessibility) error {
-	assetId := computeAssetId(af.Fingerprint)
-
+func (api *APIClient) uploadAsset(acct *Account, asset *Asset) error {
 	body := new(bytes.Buffer)
 
 	bodyWriter := multipart.NewWriter(body)
-	bodyWriter.WriteField("asset_id", assetId)
-	bodyWriter.WriteField("accessibility", string(acs))
+	bodyWriter.WriteField("asset_id", asset.Id)
+	bodyWriter.WriteField("accessibility", string(asset.File.Accessibility))
 
-	fileWriter, err := bodyWriter.CreateFormFile("file", af.Name)
+	fileWriter, err := bodyWriter.CreateFormFile("file", asset.File.Name)
 	if err != nil {
 		return err
 	}
 
-	switch acs {
+	switch asset.File.Accessibility {
 	case Public:
-		if _, e := fileWriter.Write(af.Content); e != nil {
+		if _, e := fileWriter.Write(asset.File.Content); e != nil {
 			return err
 		}
 	case Private:
@@ -126,7 +124,7 @@ func (api *APIClient) uploadAsset(acct *Account, af *assetFile, acs Accessibilit
 		if e != nil {
 			return err
 		}
-		encryptedContent, e := dataKey.Encrypt(af.Content)
+		encryptedContent, e := dataKey.Encrypt(asset.File.Content)
 		if e != nil {
 			return err
 		}
@@ -153,7 +151,7 @@ func (api *APIClient) uploadAsset(acct *Account, af *assetFile, acs Accessibilit
 	req, err := newAPIRequest("POST", u.String(), body)
 
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
-	req.Sign(acct, "uploadAsset", assetId)
+	req.Sign(acct, "uploadAsset", asset.Id)
 
 	_, err = api.submitRequest(req, nil)
 	return err
@@ -324,6 +322,65 @@ func (api *APIClient) getBitmark(bitmarkId string) (*Bitmark, error) {
 	}
 	_, err := api.submitRequest(req, &result)
 	return result.Bitmark, err
+}
+
+func (api *APIClient) getAsset(assetId string) (*AssetRecord, error) {
+	u := url.URL{
+		Scheme: "https",
+		Host:   api.apiServer,
+		Path:   "/v1/assets/" + assetId,
+	}
+	req, _ := newAPIRequest("GET", u.String(), nil)
+
+	var result struct {
+		Asset *AssetRecord
+	}
+	_, err := api.submitRequest(req, &result)
+	return result.Asset, err
+}
+
+func (api *APIClient) updateLease(acct *Account, bitmarkId, receiver string, days uint, data *SessionData) error {
+	u := url.URL{
+		Scheme: "https",
+		Host:   api.apiServer,
+		Path:   "/v2/leases/" + bitmarkId,
+	}
+	u = url.URL{
+		Scheme: "http",
+		Host:   "0.0.0.0:8087",
+		Path:   "/v2/leases/" + bitmarkId,
+	}
+	body := toJSONRequestBody(map[string]interface{}{
+		"renter":       receiver,
+		"days":         days,
+		"session_data": data,
+	})
+	req, _ := newAPIRequest("PUT", u.String(), body)
+	req.Sign(acct, "updateLease", bitmarkId)
+
+	_, err := api.submitRequest(req, nil)
+	return err
+}
+
+func (api *APIClient) listLeases(acct *Account) ([]*accessByRenting, error) {
+	u := url.URL{
+		Scheme: "https",
+		Host:   api.apiServer,
+		Path:   "/v2/leases",
+	}
+	u = url.URL{
+		Scheme: "http",
+		Host:   "0.0.0.0:8087",
+		Path:   "/v2/leases",
+	}
+	req, _ := newAPIRequest("GET", u.String(), nil)
+	req.Sign(acct, "listLeases", "")
+	var result struct {
+		AssetsAccess []*accessByRenting
+	}
+	_, err := api.submitRequest(req, &result)
+
+	return result.AssetsAccess, err
 }
 
 func toJSONRequestBody(data map[string]interface{}) io.Reader {

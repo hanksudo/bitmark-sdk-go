@@ -3,7 +3,6 @@ package bitmarksdk
 import (
 	"encoding/hex"
 	"io/ioutil"
-	"net/url"
 	"path/filepath"
 
 	"golang.org/x/crypto/sha3"
@@ -16,42 +15,65 @@ const (
 	Private Accessibility = "private"
 )
 
-type assetFile struct {
-	Name        string
-	Content     []byte
-	Fingerprint string
+type Asset struct {
+	Id       string
+	Name     string
+	Metadata map[string]string
+	File     *AssetFile
 }
 
-func readAssetFile(u string) (*assetFile, error) {
-	result, err := url.Parse(u)
+type AssetFile struct {
+	Path          string
+	Name          string
+	Content       []byte
+	Fingerprint   string
+	Accessibility Accessibility
+}
+
+func NewAssetFromFilePath(name string, metadata map[string]string, path string, acs Accessibility) (*Asset, error) {
+	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	content, err := ioutil.ReadFile(result.Path)
-	if err != nil {
-		return nil, err
-	}
-	return &assetFile{
-		filepath.Base(result.Path),
+	file := &AssetFile{
+		path,
+		filepath.Base(path),
 		content,
 		computeFingerprint(content),
-	}, err
+		acs,
+	}
 
-	// switch result.Scheme {
-	// case "file":
-	// 	content, err := ioutil.ReadFile(result.Path)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return &assetFile{
-	// 		filepath.Base(result.Path),
-	// 		content,
-	// 		computeFingerprint(content),
-	// 	}, err
-	// default:
-	// 	return nil, errors.New("scheme not supported")
-	// }
+	return &Asset{
+		Id:       computeAssetId(file.Fingerprint),
+		Name:     name,
+		Metadata: metadata,
+		File:     file,
+	}, nil
+}
+
+func AssetFromFilePath(path string, acs Accessibility) (*Asset, error) {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	file := &AssetFile{
+		path,
+		filepath.Base(path),
+		content,
+		computeFingerprint(content),
+		acs,
+	}
+
+	return &Asset{
+		Id:   computeAssetId(file.Fingerprint),
+		File: file,
+	}, nil
+}
+
+func AssetFromId(id string) *Asset {
+	return &Asset{Id: id}
 }
 
 func computeFingerprint(content []byte) string {

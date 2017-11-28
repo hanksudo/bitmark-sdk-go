@@ -5,32 +5,74 @@ import (
 	"fmt"
 )
 
-func (acct *Account) IssueBitmarks(fileURL string, acs Accessibility, propertyName string, propertyMetadata map[string]string, quantity int) (string, []string, error) {
-	af, err := readAssetFile(fileURL)
-	if err != nil {
-		return "", nil, err
-	}
+func (acct *Account) Issue(asset *Asset, quantity int) (string, []string, error) {
+	// issue new bitmarks
+	if asset.Name != "" {
+		if a, err := acct.api.getAsset(asset.Id); err != nil && err.Error() != "Not Found" {
+			return "", nil, fmt.Errorf("asset record already registered with name = '%s' and metata = '%s'", a.Name, a.Metadata)
+		}
 
-	if uerr := acct.api.uploadAsset(acct, af, acs); uerr != nil {
-		switch uerr.Error() {
-		case "asset should have been uploaded":
-			// TODO: might need to notify SDK users that the asset is already registered
-		default:
+		if asset.File == nil {
+			return "", nil, errors.New("asset file not provided")
+		}
+
+		if err := acct.api.uploadAsset(acct, asset); err != nil {
+			return "", nil, fmt.Errorf("service failed: %s", err.Error())
+		}
+
+		aRecord, aerr := NewAssetRecord(asset.Name, asset.File.Fingerprint, asset.Metadata, acct)
+		if aerr != nil {
+			return "", nil, aerr
+		}
+		iRecords, err := NewIssueRecords(asset.Id, acct, quantity)
+		if err != nil {
 			return "", nil, err
 		}
-	}
-	asset, err := NewAssetRecord(propertyName, af.Fingerprint, propertyMetadata, acct)
-	if err != nil {
-		return "", nil, err
+		bitmarkIds, err := acct.api.issue(aRecord, iRecords)
+		return asset.Id, bitmarkIds, err
 	}
 
-	issues, err := NewIssueRecords(asset.Id(), acct, quantity)
+	// issue more bitmarks
+	if asset.File != nil {
+		if err := acct.api.uploadAsset(acct, asset); err != nil {
+			return "", nil, fmt.Errorf("service failed: %s", err.Error())
+		}
+	}
+
+	iRecords, err := NewIssueRecords(asset.Id, acct, quantity)
 	if err != nil {
 		return "", nil, err
 	}
-	bitmarkIds, err := acct.api.issue(asset, issues)
-	return asset.Id(), bitmarkIds, err
+	bitmarkIds, err := acct.api.issue(nil, iRecords)
+	return asset.Id, bitmarkIds, err
 }
+
+// func (acct *Account) IssueBitmarks(fileURL string, acs Accessibility, propertyName string, propertyMetadata map[string]string, quantity int) (string, []string, error) {
+// 	af, err := readAssetFile(fileURL)
+// 	if err != nil {
+// 		return "", nil, err
+// 	}
+//
+// 	if uerr := acct.api.uploadAsset(acct, af, acs); uerr != nil {
+// 		switch uerr.Error() {
+// 		case "asset should have been uploaded":
+// 			// TODO: might need to notify SDK users that the asset is already registered
+// 		default:
+// 			return "", nil, err
+// 		}
+// 	}
+// 	asset, err := NewAssetRecord(propertyName, af.Fingerprint, propertyMetadata, acct)
+// 	if err != nil {
+// 		return "", nil, err
+// 	}
+//
+// 	issues, err := NewIssueRecords(asset.Id(), acct, quantity)
+// 	if err != nil {
+// 		return "", nil, err
+// 	}
+// 	bitmarkIds, err := acct.api.issue(asset, issues)
+// 	return asset.Id(), bitmarkIds, err
+// }
 
 func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error) {
 	access, err := acct.api.getAssetAccess(acct, bitmarkId)
@@ -113,4 +155,57 @@ func (acct *Account) DownloadAsset(bitmarkId string) (string, []byte, error) {
 	}
 
 	return fileName, plaintext, nil
+}
+
+func (acct *Account) RentBitmark(bitmarkId, receiver string, days uint) error {
+	access, err := acct.api.getAssetAccess(acct, bitmarkId)
+	if access.SessData == nil {
+		return errors.New("no need to rent public assets")
+	}
+
+	dataKey, err := dataKeyFromSessionData(acct, access.SessData, acct.EncrKey.PublicKeyBytes())
+	if err != nil {
+		return err
+	}
+
+	recipientEncrPubkey, err := acct.api.getEncPubkey(receiver)
+	if err != nil {
+		return err
+	}
+
+	data, err := createSessionData(acct, dataKey, recipientEncrPubkey)
+	if err != nil {
+		return err
+	}
+
+	return acct.api.updateLease(acct, bitmarkId, receiver, days, data)
+}
+
+func (acct *Account) ListLeases() ([]*accessByRenting, error) {
+	return acct.api.listLeases(acct)
+}
+
+func (acct *Account) DownloadAssetByLease(access *accessByRenting) ([]byte, error) {
+	req, _ := newAPIRequest("GET", access.URL, nil)
+	content, err := acct.api.submitRequest(req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	encrPubkey, err := acct.api.getEncPubkey(access.Owner)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
+	}
+
+	dataKey, err := dataKeyFromSessionData(acct, access.SessData, encrPubkey)
+	if err != nil {
+		return nil, err
+	}
+
+	plaintext, err := dataKey.Decrypt(content)
+	if err != nil {
+		return nil, err
+	}
+
+	return plaintext, nil
 }

@@ -64,7 +64,11 @@ func main() {
 		fmt.Println("seed", newacct.Seed())
 		fmt.Println("recovery phrase", strings.Join(newacct.RecoveryPhrase(), " "))
 	case "issue":
-		assetId, bitmarkIds, err := acct.IssueBitmarks(path, sdk.Accessibility(acs), name, nil, quantity)
+		asset, _ := sdk.NewAssetFromFilePath("test", map[string]string{"author": "linzy"}, "/Users/linzyhu/Downloads/test.txt", "private")
+		// asset := sdk.AssetFromId("ff1f12ef1d160dfdb1086fe8158d9c72857f3006c97adc086f91c80f04a321a738a3151b47b353f4199640ed9063bb177d6aeed440640c060ea3b0623e9d8de4")
+		// asset, _ := sdk.AssetFromFilePath("/Users/linzyhu/Downloads/test.txt", "private")
+
+		assetId, bitmarkIds, err := acct.Issue(asset, quantity)
 		if err != nil {
 			fmt.Println("issue failed: ", err)
 			return
@@ -91,5 +95,21 @@ func main() {
 		file, _ := os.Create(path + "/" + fileName)
 		file.Write(content)
 		file.Close()
+	case "rent":
+		err := acct.RentBitmark("b706b45f41ca4b3445603614d3286cdf18094c831c76fb679a2e63343bae1fc5", receiver, 1)
+		if err != nil {
+			fmt.Println("rent failed: ", err)
+			return
+		}
+	case "list_leases":
+		leases, err := acct.ListLeases()
+		if err != nil {
+			fmt.Println("lease failed: ", err)
+			return
+		}
+		for _, lease := range leases {
+			data, _ := acct.DownloadAssetByLease(lease)
+			fmt.Printf("Content: %s", string(data))
+		}
 	}
 }
