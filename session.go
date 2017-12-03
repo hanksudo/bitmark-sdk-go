@@ -1,12 +1,18 @@
 package bitmarksdk
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type Session struct {
 	HTTPClient *http.Client
 }
 
 func NewSession(c *http.Client) *Session {
+	if c == nil {
+		c = &http.Client{Timeout: 5 * time.Second}
+	}
 	return &Session{c}
 }
 
