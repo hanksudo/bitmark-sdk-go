@@ -12,6 +12,18 @@ import (
 type Network int
 type SeedVersion int
 
+// String value for print
+func (n Network) String() string {
+	switch n {
+	case Livenet:
+		return "Livenet"
+	case Testnet:
+		return "Testnet"
+	default:
+		return "Unknown Network"
+	}
+}
+
 const SeedVersion1 SeedVersion = 1
 
 const (
