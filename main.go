@@ -5,81 +5,37 @@ import (
 	"fmt"
 )
 
-// Issue is about to create a new issue on the bitmark blockchain. There are two circumstances
-// If an asset name is given, it will try to issue a brand new stuff. In this case, it first
-// checks whether it is a duplocated asset in the blockchain. If not, the dedicated file will be
-// upload. On the other hand, the api try to issue with an existed asset if the asset name is
-// not provided. It will then check if an asset file is given. If so, it will upload that again.
-// This case usually happens for a private asset.
-// Finally, submit the issue record.
-func (acct *Account) Issue(asset *Asset, quantity int) (string, []string, error) {
-	// issue new bitmarks
-	if asset.Name != "" {
-		if a, err := acct.api.getAsset(asset.Id); err != nil && err.Error() != "Not Found" {
-			return "", nil, fmt.Errorf("asset record already registered with name = '%s' and metata = '%s'", a.Name, a.Metadata)
-		}
-
-		if asset.File == nil {
-			return "", nil, errors.New("asset file not provided")
-		}
-
-		if err := acct.api.uploadAsset(acct, asset); err != nil {
-			return "", nil, fmt.Errorf("service failed: %s", err.Error())
-		}
-
-		aRecord, aerr := NewAssetRecord(asset.Name, asset.File.Fingerprint, asset.Metadata, acct)
-		if aerr != nil {
-			return "", nil, aerr
-		}
-		iRecords, err := NewIssueRecords(asset.Id, acct, quantity)
+func (acct *Account) IssueByAssetFile(af *AssetFile, quantity int) ([]string, error) {
+	var asset *AssetRecord
+	if af.propertyName != "" {
+		var err error
+		asset, err = NewAssetRecord(af.propertyName, af.Fingerprint, af.propertyMetadata, acct)
 		if err != nil {
-			return "", nil, err
-		}
-		bitmarkIds, err := acct.api.issue(aRecord, iRecords)
-		return asset.Id, bitmarkIds, err
-	}
-
-	// issue more bitmarks
-	if asset.File != nil {
-		if err := acct.api.uploadAsset(acct, asset); err != nil {
-			return "", nil, fmt.Errorf("service failed: %s", err.Error())
+			return nil, err
 		}
 	}
 
-	iRecords, err := NewIssueRecords(asset.Id, acct, quantity)
+	issues, err := NewIssueRecords(af.Id(), acct, quantity)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	bitmarkIds, err := acct.api.issue(nil, iRecords)
-	return asset.Id, bitmarkIds, err
+
+	if uerr := acct.api.uploadAsset(acct, af); uerr != nil {
+		return nil, uerr
+	}
+	bitmarkIds, err := acct.api.issue(asset, issues)
+	return bitmarkIds, err
 }
 
-// func (acct *Account) IssueBitmarks(fileURL string, acs Accessibility, propertyName string, propertyMetadata map[string]string, quantity int) (string, []string, error) {
-// 	af, err := readAssetFile(fileURL)
-// 	if err != nil {
-// 		return "", nil, err
-// 	}
-//
-// 	if uerr := acct.api.uploadAsset(acct, af, acs); uerr != nil {
-// 		switch uerr.Error() {
-// 		case "asset should have been uploaded":
-// 			// TODO: might need to notify SDK users that the asset is already registered
-// 		default:
-// 			return "", nil, err
-// 		}
-// 	}
-// 	asset, err := NewAssetRecord(propertyName, af.Fingerprint, propertyMetadata, acct)
-// 	if err != nil {
-// 		return "", nil, err
-// 	}
-//
-// 	issues, err := NewIssueRecords(asset.Id(), acct, quantity)
-// 	if err != nil {
-// 		return "", nil, err
-// 	}
-// 	bitmarkIds, err := acct.api.issue(asset, issues)
-// 	return asset.Id(), bitmarkIds, err
-// }
+func (acct *Account) IssueByAssetId(assetId string, quantity int) ([]string, error) {
+	issues, err := NewIssueRecords(assetId, acct, quantity)
+	if err != nil {
+		return nil, err
+	}
+
+	bitmarkIds, err := acct.api.issue(nil, issues)
+	return bitmarkIds, err
+}
 
 // TransferBitmark will transfer a bitmark to others. It will check the owner of a bitmark
 // which is going to transfer. If it is valid, a transfer request will be submitted.

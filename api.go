@@ -102,21 +102,21 @@ func (api *APIClient) submitRequest(req *APIRequest, reply interface{}) ([]byte,
 }
 
 // [ASSET] - upload a asset file; if private asset, encryption needs to be applied
-func (api *APIClient) uploadAsset(acct *Account, asset *Asset) error {
+func (api *APIClient) uploadAsset(acct *Account, af *AssetFile) error {
 	body := new(bytes.Buffer)
 
 	bodyWriter := multipart.NewWriter(body)
-	bodyWriter.WriteField("asset_id", asset.Id)
-	bodyWriter.WriteField("accessibility", string(asset.File.Accessibility))
+	bodyWriter.WriteField("asset_id", af.Id())
+	bodyWriter.WriteField("accessibility", string(af.Accessibility))
 
-	fileWriter, err := bodyWriter.CreateFormFile("file", asset.File.Name)
+	fileWriter, err := bodyWriter.CreateFormFile("file", af.Name)
 	if err != nil {
 		return err
 	}
 
-	switch asset.File.Accessibility {
+	switch af.Accessibility {
 	case Public:
-		if _, e := fileWriter.Write(asset.File.Content); e != nil {
+		if _, e := fileWriter.Write(af.Content); e != nil {
 			return err
 		}
 	case Private:
@@ -124,7 +124,7 @@ func (api *APIClient) uploadAsset(acct *Account, asset *Asset) error {
 		if e != nil {
 			return err
 		}
-		encryptedContent, e := dataKey.Encrypt(asset.File.Content)
+		encryptedContent, e := dataKey.Encrypt(af.Content)
 		if e != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ func (api *APIClient) uploadAsset(acct *Account, asset *Asset) error {
 	req, err := newAPIRequest("POST", u.String(), body)
 
 	req.Header.Set("Content-Type", bodyWriter.FormDataContentType())
-	req.Sign(acct, "uploadAsset", asset.Id)
+	req.Sign(acct, "uploadAsset", af.Id())
 
 	_, err = api.submitRequest(req, nil)
 	return err
@@ -324,7 +324,7 @@ func (api *APIClient) getBitmark(bitmarkId string) (*Bitmark, error) {
 	return result.Bitmark, err
 }
 
-func (api *APIClient) getAsset(assetId string) (*AssetRecord, error) {
+func (api *APIClient) getAsset(assetId string) (*Asset, error) {
 	u := url.URL{
 		Scheme: "https",
 		Host:   api.apiServer,
@@ -333,10 +333,13 @@ func (api *APIClient) getAsset(assetId string) (*AssetRecord, error) {
 	req, _ := newAPIRequest("GET", u.String(), nil)
 
 	var result struct {
-		Asset *AssetRecord
+		Asset Asset
 	}
 	_, err := api.submitRequest(req, &result)
-	return result.Asset, err
+	if err != nil && err.Error() == "Not Found" {
+		return nil, nil
+	}
+	return &result.Asset, err
 }
 
 func (api *APIClient) updateLease(acct *Account, bitmarkId, receiver string, days uint, data *SessionData) error {

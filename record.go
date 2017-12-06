@@ -50,19 +50,19 @@ func NewAssetRecord(name, fingerprint string, metadata map[string]string, regist
 	compactMetadata := strings.Join(parts, "\u0000")
 
 	if utf8.RuneCountInString(name) < minNameLength || utf8.RuneCountInString(name) > maxNameLength {
-		return nil, ErrInvalidLength
+		return nil, errors.New("property name not set or exceeds the maximum length (64 Unicode characters)")
 	}
 
 	if utf8.RuneCountInString(fingerprint) < minFingerprintLength || utf8.RuneCountInString(fingerprint) > maxFingerprintLength {
-		return nil, ErrInvalidLength
+		return nil, errors.New("property fingerprint not set or exceeds the maximum length (1024 Unicode characters)")
 	}
 
 	if utf8.RuneCountInString(compactMetadata) > maxMetadataLength {
-		return nil, ErrInvalidLength
+		return nil, errors.New("property metadata exceeds the maximum length (1024 Unicode characters)")
 	}
 
 	if registrant == nil {
-		return nil, ErrInvalidAccount
+		return nil, errors.New("registrant not set")
 	}
 
 	// pack and sign
@@ -204,4 +204,17 @@ type Provenance struct {
 	TxId   string `json:"tx_id"`
 	Owner  string `json:"owner"`
 	Status string `json:"status"`
+}
+
+type Asset struct {
+	Id          string            `json:"id"`
+	Name        string            `json:"name"`
+	Fingerprint string            `json:"fingerprint"`
+	Metadata    map[string]string `json:"metadata"`
+	Registrant  string            `json:"registrant"`
+	Status      string            `json:"status"`
+	BlockNumber int               `json:"block_number"`
+	BlockOffset int               `json:"block_offset"`
+	ExpiresAt   string            `json:"expires_at"`
+	Offset      int               `json:"offset"`
 }

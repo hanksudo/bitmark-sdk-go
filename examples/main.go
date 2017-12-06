@@ -1,12 +1,16 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/nacl/box"
 
 	sdk "github.com/bitmark-inc/bitmark-sdk-go"
 )
@@ -19,9 +23,14 @@ var (
 	path string
 
 	// issue
+	filepath string
 	acs      string
-	name     string
-	metadata string
+
+	assetId string
+
+	name        string
+	rawMetadata string
+
 	quantity int
 
 	// transfer
@@ -36,15 +45,52 @@ func parseVars() {
 	subcmd.StringVar(&chain, "chain", "test", "")
 
 	subcmd.StringVar(&path, "path", "", "")
+
+	subcmd.StringVar(&filepath, "p", "", "")
 	subcmd.StringVar(&acs, "acs", "public", "")
-	subcmd.StringVar(&name, "name", "Bitmark GO SDK trial", "")
-	subcmd.StringVar(&metadata, "metadata", "", "")
+	subcmd.StringVar(&name, "name", "", "")
+	subcmd.StringVar(&rawMetadata, "meta", "", "")
+	subcmd.StringVar(&assetId, "aid", "", "")
 	subcmd.IntVar(&quantity, "quantity", 1, "")
 
 	subcmd.StringVar(&receiver, "receiver", "eZpG6Wi9SQvpDatEP7QGrx6nvzwd6s6R8DgMKgDbDY1R5bjzb9", "")
-	subcmd.StringVar(&bitmarkId, "bmkid", "", "")
+	subcmd.StringVar(&bitmarkId, "bid", "", "")
 
 	subcmd.Parse(os.Args[2:])
+}
+
+func toMedatadata() map[string]string {
+	parts := strings.Split(rawMetadata, ",")
+	metadata := make(map[string]string)
+	if len(parts) > 1 {
+		for _, part := range parts {
+			z := strings.Split(part, ":")
+			metadata[z[0]] = z[1]
+		}
+	}
+	return metadata
+}
+
+func test() {
+	senderPublicKey, senderPrivateKey, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	recipientPublicKey, recipientPrivateKey, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	// The shared key can be used to speed up processing when using the same
+	// pair of keys repeatedly.
+	senderSharedEncryptKey := new([32]byte)
+	box.Precompute(senderSharedEncryptKey, recipientPublicKey, senderPrivateKey)
+	fmt.Println(hex.EncodeToString(senderSharedEncryptKey[:]))
+
+	recipientSharedEncryptKey := new([32]byte)
+	box.Precompute(recipientSharedEncryptKey, senderPublicKey, recipientPrivateKey)
+	fmt.Println(hex.EncodeToString(senderSharedEncryptKey[:]))
 }
 
 func main() {
@@ -52,6 +98,7 @@ func main() {
 
 	parseVars()
 	acct, _ := session.RestoreAccountFromSeed(seed)
+	fmt.Println("Account Number: ", acct.AccountNumber())
 
 	switch os.Args[1] {
 	case "create_account":
@@ -64,21 +111,28 @@ func main() {
 		fmt.Println("seed", newacct.Seed())
 		fmt.Println("recovery phrase", strings.Join(newacct.RecoveryPhrase(), " "))
 	case "issue":
-		asset, _ := sdk.NewAssetFromFilePath("test", map[string]string{"author": "linzy"}, "/Users/linzyhu/Downloads/test.txt", "private")
-		// asset := sdk.AssetFromId("ff1f12ef1d160dfdb1086fe8158d9c72857f3006c97adc086f91c80f04a321a738a3151b47b353f4199640ed9063bb177d6aeed440640c060ea3b0623e9d8de4")
-		// asset, _ := sdk.AssetFromFilePath("/Users/linzyhu/Downloads/test.txt", "private")
+		var bitmarkIds []string
+		var err error
+		if filepath != "" {
+			af, _ := sdk.NewAssetFile(filepath, sdk.Accessibility(acs))
+			if name != "" {
+				af.Describe(name, toMedatadata())
+			}
+			fmt.Println("Asset ID:", af.Id())
+			bitmarkIds, err = acct.IssueByAssetFile(af, quantity)
+		} else {
+			bitmarkIds, err = acct.IssueByAssetId(assetId, quantity)
+		}
 
-		assetId, bitmarkIds, err := acct.Issue(asset, quantity)
 		if err != nil {
 			fmt.Println("issue failed: ", err)
 			return
 		}
-		fmt.Println("Account Number: ", acct.AccountNumber())
-		fmt.Println("Asset ID\n", assetId)
-		fmt.Println("Bitmark ID")
+		fmt.Println("Bitmark ID:")
 		for i, id := range bitmarkIds {
-			fmt.Printf("[%d] %s", i, id)
+			fmt.Printf("\t[%d] %s", i, id)
 		}
+		fmt.Println()
 	case "transfer":
 		txId, err := acct.TransferBitmark(bitmarkId, receiver)
 		if err != nil {
@@ -92,9 +146,11 @@ func main() {
 			fmt.Println("download failed: ", err)
 			return
 		}
-		file, _ := os.Create(path + "/" + fileName)
-		file.Write(content)
-		file.Close()
+		fmt.Println("File Name:", fileName)
+		fmt.Println("File Content:", string(content))
+		// file, _ := os.Create(path + "/" + fileName)
+		// file.Write(content)
+		// file.Close()
 	case "rent":
 		err := acct.RentBitmark("b706b45f41ca4b3445603614d3286cdf18094c831c76fb679a2e63343bae1fc5", receiver, 1)
 		if err != nil {
