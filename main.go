@@ -5,6 +5,13 @@ import (
 	"fmt"
 )
 
+// Issue is about to create a new issue on the bitmark blockchain. There are two circumstances
+// If an asset name is given, it will try to issue a brand new stuff. In this case, it first
+// checks whether it is a duplocated asset in the blockchain. If not, the dedicated file will be
+// upload. On the other hand, the api try to issue with an existed asset if the asset name is
+// not provided. It will then check if an asset file is given. If so, it will upload that again.
+// This case usually happens for a private asset.
+// Finally, submit the issue record.
 func (acct *Account) Issue(asset *Asset, quantity int) (string, []string, error) {
 	// issue new bitmarks
 	if asset.Name != "" {
@@ -74,6 +81,10 @@ func (acct *Account) Issue(asset *Asset, quantity int) (string, []string, error)
 // 	return asset.Id(), bitmarkIds, err
 // }
 
+// TransferBitmark will transfer a bitmark to others. It will check the owner of a bitmark
+// which is going to transfer. If it is valid, a transfer request will be submitted.
+// If the target bitmark is private, it will generate a new session data for the new
+// receiver.
 func (acct *Account) TransferBitmark(bitmarkId, receiver string) (string, error) {
 	access, err := acct.api.getAssetAccess(acct, bitmarkId)
 	if err != nil {
