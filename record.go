@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	assetRecordTag    = uint64(2)
-	issueRecordTag    = uint64(3)
-	transferRecordTag = uint64(4)
+	assetTag                 = uint64(2)
+	issueTag                 = uint64(3)
+	transferUnratifiedTag    = uint64(4)
+	transferCountersignedTag = uint64(5)
 
 	minNameLength        = 1
 	maxNameLength        = 64
@@ -66,7 +67,7 @@ func NewAssetRecord(name, fingerprint string, metadata map[string]string, regist
 	}
 
 	// pack and sign
-	message := toVarint64(assetRecordTag)
+	message := toVarint64(assetTag)
 	message = appendString(message, name)
 	message = appendString(message, fingerprint)
 	message = appendString(message, compactMetadata)
@@ -97,7 +98,7 @@ func NewIssueRecord(assetIndex string, issuer *Account) (*IssueRecord, error) {
 	nonce := uint64(time.Now().UTC().Unix())*1000 + nonceIndex%1000
 
 	// pack and sign
-	message := toVarint64(issueRecordTag)
+	message := toVarint64(issueTag)
 	message = appendBytes(message, assetIndexBytes)
 	message = appendBytes(message, issuer.bytes())
 	message = appendUint64(message, nonce)
@@ -141,13 +142,71 @@ func NewTransferRecord(txId string, receiver string, owner *Account) (*TransferR
 	}
 
 	// pack and sign
-	message := toVarint64(transferRecordTag)
+	message := toVarint64(transferUnratifiedTag)
 	message = appendBytes(message, link)
 	message = append(message, 0) // payment not supported
 	message = appendBytes(message, AuthPublicKeyFromAccountNumber(receiver))
 	signature := hex.EncodeToString(owner.AuthKey.Sign(message))
 
 	return &TransferRecord{txId, receiver, signature}, nil
+}
+
+type TransferOffer struct {
+	BitmarkId string `json:"bitmark_id"`
+	Link      string `json:"link"`
+	Owner     string `json:"owner"`
+	Signature string `json:"signature"`
+}
+
+type CountersignedTransferRecord struct {
+	Link             string `json:"link"`
+	Owner            string `json:"owner"`
+	Signature        string `json:"signature"`
+	Countersignature string `json:"countersignature,omitempty"`
+}
+
+func NewTransferOffer(bitmarkId, txId, receiver string, sender *Account) (*TransferOffer, error) {
+	link, err := hex.DecodeString(txId)
+	if err != nil || len(link) != merkleDigestLength {
+		return nil, ErrInvalidLength
+	}
+
+	if sender == nil {
+		return nil, ErrInvalidAccount
+	}
+
+	// pack and sign
+	message := toVarint64(transferCountersignedTag)
+	message = appendBytes(message, link)
+	message = append(message, 0) // payment not supported
+	message = appendBytes(message, AuthPublicKeyFromAccountNumber(receiver))
+	signature := hex.EncodeToString(sender.AuthKey.Sign(message))
+	return &TransferOffer{bitmarkId, txId, receiver, signature}, nil
+}
+
+func (t *TransferOffer) Countersign(receiver *Account) (*CountersignedTransferRecord, error) {
+	link, err := hex.DecodeString(t.Link)
+	if err != nil || len(link) != merkleDigestLength {
+		return nil, ErrInvalidLength
+	}
+
+	if receiver == nil || t.Owner != receiver.AccountNumber() {
+		return nil, ErrInvalidAccount
+	}
+
+	sig, err := hex.DecodeString(t.Signature)
+	if err != nil {
+		return nil, ErrInvalidLength
+	}
+
+	// pack and sign
+	message := toVarint64(transferCountersignedTag)
+	message = appendBytes(message, link)
+	message = append(message, 0) // payment not supported
+	message = appendBytes(message, receiver.bytes())
+	message = appendBytes(message, sig)
+
+	return &CountersignedTransferRecord{t.Link, t.Owner, t.Signature, hex.EncodeToString(receiver.AuthKey.Sign(message))}, nil
 }
 
 const varint64MaximumBytes = 9

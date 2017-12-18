@@ -1,8 +1,7 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -10,17 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/nacl/box"
-
 	sdk "github.com/bitmark-inc/bitmark-sdk-go"
 )
 
 var (
-	seed string
+	client *sdk.Client
 
-	chain string
-
-	path string
+	issuerSeed   string
+	senderSeed   string
+	receiverSeed string
+	ownerSeed    string
 
 	// issue
 	filepath string
@@ -35,16 +33,15 @@ var (
 
 	// transfer
 	bitmarkId string
-	receiver  string
 )
 
 func parseVars() {
 	subcmd := flag.NewFlagSet("subcmd", flag.ExitOnError)
-	subcmd.StringVar(&seed, "seed", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "")
 
-	subcmd.StringVar(&chain, "chain", "test", "")
-
-	subcmd.StringVar(&path, "path", "", "")
+	subcmd.StringVar(&issuerSeed, "issuer", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "")
+	subcmd.StringVar(&senderSeed, "sender", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "")
+	subcmd.StringVar(&receiverSeed, "receiver", "5XEECt4yuMK4xqBLr9ky5FBWpkAR6VHNZSz8fUzZDXPnN3D9MeivTSA", "")
+	subcmd.StringVar(&ownerSeed, "owner", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "")
 
 	subcmd.StringVar(&filepath, "p", "", "")
 	subcmd.StringVar(&acs, "acs", "public", "")
@@ -53,7 +50,6 @@ func parseVars() {
 	subcmd.StringVar(&assetId, "aid", "", "")
 	subcmd.IntVar(&quantity, "quantity", 1, "")
 
-	subcmd.StringVar(&receiver, "receiver", "eZpG6Wi9SQvpDatEP7QGrx6nvzwd6s6R8DgMKgDbDY1R5bjzb9", "")
 	subcmd.StringVar(&bitmarkId, "bid", "", "")
 
 	subcmd.Parse(os.Args[2:])
@@ -71,101 +67,101 @@ func toMedatadata() map[string]string {
 	return metadata
 }
 
-func test() {
-	senderPublicKey, senderPrivateKey, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-
-	recipientPublicKey, recipientPrivateKey, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-
-	// The shared key can be used to speed up processing when using the same
-	// pair of keys repeatedly.
-	senderSharedEncryptKey := new([32]byte)
-	box.Precompute(senderSharedEncryptKey, recipientPublicKey, senderPrivateKey)
-	fmt.Println(hex.EncodeToString(senderSharedEncryptKey[:]))
-
-	recipientSharedEncryptKey := new([32]byte)
-	box.Precompute(recipientSharedEncryptKey, senderPublicKey, recipientPrivateKey)
-	fmt.Println(hex.EncodeToString(senderSharedEncryptKey[:]))
-}
-
 func main() {
-	session := sdk.NewSession(&http.Client{Timeout: 5 * time.Second})
-
 	parseVars()
-	acct, _ := session.RestoreAccountFromSeed(seed)
-	fmt.Println("Account Number: ", acct.AccountNumber())
+
+	cfg := &sdk.Config{
+		HTTPClient:    &http.Client{Timeout: 5 * time.Second},
+		Network:       sdk.Testnet,
+		APIEndpoint:   "https://api.devel.bitmark.com",
+		AssetEndpoint: "https://assets.devel.bitmark.com",
+	}
+	client = sdk.NewClient(cfg)
 
 	switch os.Args[1] {
-	case "create_account":
-		network := sdk.Livenet
-		if chain != "livenet" {
-			network = sdk.Testnet
-		}
-		newacct, _ := session.CreateAccount(network)
-		fmt.Println("account number", newacct.AccountNumber())
-		fmt.Println("seed", newacct.Seed())
-		fmt.Println("recovery phrase", strings.Join(newacct.RecoveryPhrase(), " "))
-	case "issue":
-		var bitmarkIds []string
-		var err error
-		if filepath != "" {
-			af, _ := sdk.NewAssetFile(filepath, sdk.Accessibility(acs))
-			if name != "" {
-				af.Describe(name, toMedatadata())
-			}
-			fmt.Println("Asset ID:", af.Id())
-			bitmarkIds, err = acct.IssueByAssetFile(af, quantity)
-		} else {
-			bitmarkIds, err = acct.IssueByAssetId(assetId, quantity)
+	case "newacct":
+		account, _ := client.CreateAccount()
+		fmt.Println("Account Number:", account.AccountNumber())
+		fmt.Println("-> seed:", account.Seed())
+		fmt.Println("-> recovery phrase:", strings.Join(account.RecoveryPhrase(), " "))
+	case "afile-issue": // -path=<file path> -name=<name> -metadata=<key1:val1,key2:val2> -acs=<accessibility> -quantity=<quantity>
+		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
+		fmt.Println("issuer:", issuer.AccountNumber())
+
+		if filepath == "" {
+			panic("asset file not specified")
 		}
 
-		if err != nil {
-			fmt.Println("issue failed: ", err)
-			return
+		af, _ := sdk.NewAssetFile(filepath, sdk.Accessibility(acs))
+		if name != "" {
+			af.Describe(name, toMedatadata())
 		}
-		fmt.Println("Bitmark ID:")
+		fmt.Println("Asset ID:", af.Id())
+
+		bitmarkIds, err := client.IssueByAssetFile(issuer, af, quantity)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println("Bitmark IDs:")
 		for i, id := range bitmarkIds {
-			fmt.Printf("\t[%d] %s", i, id)
+			fmt.Printf("\t[%d] %s\n", i, id)
 		}
-		fmt.Println()
-	case "transfer":
-		txId, err := acct.TransferBitmark(bitmarkId, receiver)
+	case "aid-issue": // -aid=<asset id>
+		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
+		fmt.Println("issuer:", issuer.AccountNumber())
+
+		bitmarkIds, err := client.IssueByAssetId(issuer, assetId, quantity)
 		if err != nil {
-			fmt.Println("transfer failed: ", err)
-			return
+			panic(err)
+		}
+
+		fmt.Println("Bitmark IDs:")
+		for i, id := range bitmarkIds {
+			fmt.Printf("\t[%d] %s\n", i, id)
+		}
+	case "1sig-trf": // -bid=<bitmark id>
+		sender, _ := client.RestoreAccountFromSeed(senderSeed)
+		fmt.Println("sender:", sender.AccountNumber())
+		receiver, _ := client.RestoreAccountFromSeed(receiverSeed)
+		fmt.Println("receiver:", receiver.AccountNumber())
+
+		txId, err := client.Transfer(sender, bitmarkId, receiver.AccountNumber())
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Transaction ID: ", txId)
+	case "2sig-trf": // -bid=<bitmark id>
+		sender, _ := client.RestoreAccountFromSeed(senderSeed)
+		fmt.Println("sender:", sender.AccountNumber())
+		receiver, _ := client.RestoreAccountFromSeed(receiverSeed)
+		fmt.Println("receiver:", receiver.AccountNumber())
+
+		// sign by sender
+		offer, err := client.SignTransferOffer(sender, bitmarkId, receiver.AccountNumber())
+		if err != nil {
+			panic(err)
+		}
+
+		data, _ := json.Marshal(offer)
+		fmt.Println("transfer offer to be signed by receiver:\n", string(data))
+
+		// sign by receiver
+		txId, err := client.CountersignTransfer(receiver, offer)
+		if err != nil {
+			panic(err)
 		}
 		fmt.Println("Transaction ID: ", txId)
 	case "download":
-		fileName, content, err := acct.DownloadAsset(bitmarkId)
+		owner, _ := client.RestoreAccountFromSeed(ownerSeed)
+		fmt.Println("owner:", owner.AccountNumber())
+
+		fileName, content, err := client.DownloadAsset(owner, bitmarkId)
 		if err != nil {
 			fmt.Println("download failed: ", err)
 			return
 		}
 		fmt.Println("File Name:", fileName)
 		fmt.Println("File Content:", string(content))
-		// file, _ := os.Create(path + "/" + fileName)
-		// file.Write(content)
-		// file.Close()
-	case "rent":
-		err := acct.RentBitmark("b706b45f41ca4b3445603614d3286cdf18094c831c76fb679a2e63343bae1fc5", receiver, 1)
-		if err != nil {
-			fmt.Println("rent failed: ", err)
-			return
-		}
-	case "list_leases":
-		leases, err := acct.ListLeases()
-		if err != nil {
-			fmt.Println("lease failed: ", err)
-			return
-		}
-		for _, lease := range leases {
-			data, _ := acct.DownloadAssetByLease(lease)
-			fmt.Printf("Content: %s", string(data))
-		}
 	}
 }
