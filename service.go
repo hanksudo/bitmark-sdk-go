@@ -16,9 +16,9 @@ import (
 )
 
 type Service struct {
-	client        *http.Client
-	apiEndpoint   string
-	assetEndpoint string
+	client      *http.Client
+	apiEndpoint string
+	keyEndpoint string
 }
 
 func (s *Service) newAPIRequest(method, path string, body io.Reader) (*http.Request, error) {
@@ -43,8 +43,8 @@ func (s *Service) newSignedAPIRequest(method, path string, body io.Reader, acct 
 	return req, nil
 }
 
-func (s *Service) newAssetRequest(method, path string, body io.Reader) (*http.Request, error) {
-	return http.NewRequest(method, s.assetEndpoint+path, body)
+func (s *Service) newKeyRequest(method, path string, body io.Reader) (*http.Request, error) {
+	return http.NewRequest(method, s.keyEndpoint+path, body)
 }
 
 func (s *Service) submitRequest(req *http.Request, result interface{}) ([]byte, error) {
@@ -229,7 +229,7 @@ func (s *Service) registerEncPubkey(acct *Account) error {
 }
 
 func (s *Service) getEncPubkey(acctNo string) ([]byte, error) {
-	req, _ := s.newAssetRequest("GET", fmt.Sprintf("/%s", acctNo), nil)
+	req, _ := s.newKeyRequest("GET", fmt.Sprintf("/%s", acctNo), nil)
 
 	var result struct {
 		Key string `json:"encryption_pubkey"`

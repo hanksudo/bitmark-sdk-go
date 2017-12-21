@@ -57,7 +57,6 @@ func NewAPIClient(network Network, client *http.Client) *APIClient {
 	}
 
 	switch network {
-	// TODO: CHANGE TO TESTNET FROM DEVNET
 	case Testnet:
 		api.apiServer = "api.test.bitmark.com"
 		api.assetServer = "assets.test.bitmark.com"

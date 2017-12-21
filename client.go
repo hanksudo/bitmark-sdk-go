@@ -10,8 +10,8 @@ type Config struct {
 	HTTPClient *http.Client
 	Network    Network
 
-	APIEndpoint   string
-	AssetEndpoint string
+	APIEndpoint string
+	KeyEndpoint string
 }
 
 type Client struct {
@@ -21,25 +21,25 @@ type Client struct {
 
 func NewClient(cfg *Config) *Client {
 	var apiEndpoint string
-	var assetEndpoint string
+	var keyEndpoint string
 	switch cfg.Network {
 	case Testnet:
 		apiEndpoint = "https://api.test.bitmark.com"
-		assetEndpoint = "https://assets.test.bitmark.com"
+		keyEndpoint = "https://assets.test.bitmark.com"
 	case Livenet:
 		apiEndpoint = "https://api.bitmark.com"
-		assetEndpoint = "https://assets.bitmark.com"
+		keyEndpoint = "https://assets.bitmark.com"
 	}
 
 	// allow endpoints customization
 	if cfg.APIEndpoint != "" {
 		apiEndpoint = cfg.APIEndpoint
 	}
-	if cfg.AssetEndpoint != "" {
-		assetEndpoint = cfg.AssetEndpoint
+	if cfg.KeyEndpoint != "" {
+		keyEndpoint = cfg.KeyEndpoint
 	}
 
-	svc := &Service{cfg.HTTPClient, apiEndpoint, assetEndpoint}
+	svc := &Service{cfg.HTTPClient, apiEndpoint, keyEndpoint}
 	return &Client{cfg.Network, svc}
 }
 
