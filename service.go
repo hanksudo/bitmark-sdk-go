@@ -60,11 +60,11 @@ func (s *Service) submitRequest(req *http.Request, result interface{}) ([]byte, 
 	}
 
 	if resp.StatusCode/100 != 2 {
-		var se *ServiceError
-		if e := json.Unmarshal(data, se); e != nil {
+		var se ServiceError
+		if e := json.Unmarshal(data, &se); e != nil {
 			return nil, fmt.Errorf("unexpected response: %s", string(data))
 		}
-		return nil, se
+		return nil, &se
 	}
 
 	if result != nil {
