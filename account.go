@@ -146,8 +146,3 @@ func (acct *Account) bytes() []byte {
 	}
 	return append([]byte{keyVariant}, acct.AuthKey.PublicKeyBytes()...)
 }
-
-func AuthPublicKeyFromAccountNumber(acctNo string) []byte {
-	buffer := fromBase58(acctNo)
-	return buffer[:len(buffer)-checksumLength]
-}

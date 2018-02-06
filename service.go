@@ -251,6 +251,29 @@ func (s *Service) getBitmark(bitmarkId string) (*Bitmark, error) {
 	return result.Bitmark, err
 }
 
+func (s *Service) updateLease(acct *Account, bitmarkId, renter string, days uint, data *SessionData) error {
+	body := toJSONRequestBody(map[string]interface{}{
+		"renter":       renter,
+		"days":         days,
+		"session_data": data,
+	})
+	req, _ := s.newSignedAPIRequest("POST", "/v2/leases/"+bitmarkId, body, acct, "updateLease", bitmarkId)
+
+	_, err := s.submitRequest(req, nil)
+	return err
+}
+
+func (s *Service) listLeases(acct *Account) ([]accessByRenting, error) {
+	req, _ := s.newSignedAPIRequest("POST", "/v2/leases", nil, acct, "listLeases", "")
+
+	var result struct {
+		Leases []accessByRenting `json:"leases"`
+	}
+	_, err := s.submitRequest(req, &result)
+
+	return result.Leases, err
+}
+
 func toJSONReqBody(data map[string]interface{}) io.Reader {
 	body := new(bytes.Buffer)
 	json.NewEncoder(body).Encode(data)

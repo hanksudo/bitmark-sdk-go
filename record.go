@@ -145,7 +145,7 @@ func NewTransferRecord(txId string, receiver string, owner *Account) (*TransferR
 	message := toVarint64(transferUnratifiedTag)
 	message = appendBytes(message, link)
 	message = append(message, 0) // payment not supported
-	message = appendBytes(message, AuthPublicKeyFromAccountNumber(receiver))
+	message = appendAccount(message, receiver)
 	signature := hex.EncodeToString(owner.AuthKey.Sign(message))
 
 	return &TransferRecord{txId, receiver, signature}, nil
@@ -179,7 +179,7 @@ func NewTransferOffer(bitmarkId, txId, receiver string, sender *Account) (*Trans
 	message := toVarint64(transferCountersignedTag)
 	message = appendBytes(message, link)
 	message = append(message, 0) // payment not supported
-	message = appendBytes(message, AuthPublicKeyFromAccountNumber(receiver))
+	message = appendAccount(message, receiver)
 	signature := hex.EncodeToString(sender.AuthKey.Sign(message))
 	return &TransferOffer{bitmarkId, txId, receiver, signature}, nil
 }
@@ -215,6 +215,11 @@ func appendString(buffer []byte, s string) []byte {
 	l := toVarint64(uint64(len(s)))
 	buffer = append(buffer, l...)
 	return append(buffer, s...)
+}
+
+func appendAccount(buffer []byte, acctNo string) []byte {
+	acctBytes := fromBase58(acctNo)
+	return appendBytes(buffer, acctBytes[:len(acctBytes)-checksumLength])
 }
 
 func appendBytes(buffer []byte, data []byte) []byte {

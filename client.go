@@ -257,3 +257,58 @@ func (c *Client) DownloadAsset(acct *Account, bitmarkId string) (string, []byte,
 
 	return fileName, plaintext, nil
 }
+
+func (c *Client) RentBitmark(lessor *Account, bitmarkId, receiver string, days uint) error {
+	access, err := c.service.getAssetAccess(lessor, bitmarkId)
+	if err != nil {
+		return err
+	}
+	if access.SessData == nil {
+		return errors.New("no need to rent public assets")
+	}
+
+	dataKey, err := dataKeyFromSessionData(lessor, access.SessData, lessor.EncrKey.PublicKeyBytes())
+	if err != nil {
+		return err
+	}
+
+	recipientEncrPubkey, err := c.service.getEncPubkey(receiver)
+	if err != nil {
+		return err
+	}
+
+	data, err := createSessionData(lessor, dataKey, recipientEncrPubkey)
+	if err != nil {
+		return err
+	}
+
+	return c.service.updateLease(lessor, bitmarkId, receiver, days, data)
+}
+
+func (c *Client) ListLeases(renter *Account) ([]accessByRenting, error) {
+	return c.service.listLeases(renter)
+}
+
+func (c *Client) DownloadAssetByLease(acct *Account, access *accessByRenting) ([]byte, error) {
+	_, content, err := c.service.getAssetContent(access.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	encrPubkey, err := acct.api.getEncPubkey(access.Owner)
+	if err != nil {
+		return nil, fmt.Errorf("fail to get enc public key: %s", err.Error())
+	}
+
+	dataKey, err := dataKeyFromSessionData(acct, access.SessData, encrPubkey)
+	if err != nil {
+		return nil, err
+	}
+
+	plaintext, err := dataKey.Decrypt(content)
+	if err != nil {
+		return nil, err
+	}
+
+	return plaintext, nil
+}

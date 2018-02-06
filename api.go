@@ -341,50 +341,6 @@ func (api *APIClient) getAsset(assetId string) (*Asset, error) {
 	return &result.Asset, err
 }
 
-func (api *APIClient) updateLease(acct *Account, bitmarkId, receiver string, days uint, data *SessionData) error {
-	u := url.URL{
-		Scheme: "https",
-		Host:   api.apiServer,
-		Path:   "/v2/leases/" + bitmarkId,
-	}
-	u = url.URL{
-		Scheme: "http",
-		Host:   "0.0.0.0:8087",
-		Path:   "/v2/leases/" + bitmarkId,
-	}
-	body := toJSONRequestBody(map[string]interface{}{
-		"renter":       receiver,
-		"days":         days,
-		"session_data": data,
-	})
-	req, _ := newAPIRequest("PUT", u.String(), body)
-	req.Sign(acct, "updateLease", bitmarkId)
-
-	_, err := api.submitRequest(req, nil)
-	return err
-}
-
-func (api *APIClient) listLeases(acct *Account) ([]*accessByRenting, error) {
-	u := url.URL{
-		Scheme: "https",
-		Host:   api.apiServer,
-		Path:   "/v2/leases",
-	}
-	u = url.URL{
-		Scheme: "http",
-		Host:   "0.0.0.0:8087",
-		Path:   "/v2/leases",
-	}
-	req, _ := newAPIRequest("GET", u.String(), nil)
-	req.Sign(acct, "listLeases", "")
-	var result struct {
-		AssetsAccess []*accessByRenting
-	}
-	_, err := api.submitRequest(req, &result)
-
-	return result.AssetsAccess, err
-}
-
 func toJSONRequestBody(data map[string]interface{}) io.Reader {
 	body := new(bytes.Buffer)
 	json.NewEncoder(body).Encode(data)

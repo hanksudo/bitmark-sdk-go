@@ -163,5 +163,18 @@ func main() {
 		}
 		fmt.Println("File Name:", fileName)
 		fmt.Println("File Content:", string(content))
+	case "workspace":
+		sender, _ := client.RestoreAccountFromSeed(senderSeed)
+		receiver, _ := client.RestoreAccountFromSeed(receiverSeed)
+		err := client.RentBitmark(sender, "9ea451471209228baef87648840d43ed53a29908fc23d4506c013c83fdc21587", receiver.AccountNumber(), 1)
+		if err != nil {
+			panic(err)
+		}
+
+		result, err := client.ListLeases(receiver)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(result)
 	}
 }
