@@ -242,7 +242,7 @@ func (s *Service) getEncPubkey(acctNo string) ([]byte, error) {
 }
 
 func (s *Service) getBitmark(bitmarkId string) (*Bitmark, error) {
-	req, _ := s.newAPIRequest("GET", "/v1/bitmarks/"+bitmarkId, nil)
+	req, _ := s.newAPIRequest("GET", "/v1/bitmarks/"+bitmarkId+"?provenance=true", nil)
 
 	var result struct {
 		Bitmark *Bitmark

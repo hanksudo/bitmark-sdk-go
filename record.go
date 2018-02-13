@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
+
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -152,10 +154,10 @@ func NewTransferRecord(txId string, receiver string, owner *Account) (*TransferR
 }
 
 type TransferOffer struct {
-	BitmarkId string `json:"bitmark_id"`
-	Link      string `json:"link"`
-	Owner     string `json:"owner"`
-	Signature string `json:"signature"`
+	Bitmark   *Bitmark `json:"bitmark,omitempty"`
+	Link      string   `json:"link"`
+	Owner     string   `json:"owner"`
+	Signature string   `json:"signature"`
 }
 
 type CountersignedTransferRecord struct {
@@ -165,7 +167,7 @@ type CountersignedTransferRecord struct {
 	Countersignature string `json:"countersignature,omitempty"`
 }
 
-func NewTransferOffer(bitmarkId, txId, receiver string, sender *Account) (*TransferOffer, error) {
+func NewTransferOffer(bitmark *Bitmark, txId, receiver string, sender *Account) (*TransferOffer, error) {
 	link, err := hex.DecodeString(txId)
 	if err != nil || len(link) != merkleDigestLength {
 		return nil, ErrInvalidLength
@@ -181,7 +183,7 @@ func NewTransferOffer(bitmarkId, txId, receiver string, sender *Account) (*Trans
 	message = append(message, 0) // payment not supported
 	message = appendAccount(message, receiver)
 	signature := hex.EncodeToString(sender.AuthKey.Sign(message))
-	return &TransferOffer{bitmarkId, txId, receiver, signature}, nil
+	return &TransferOffer{bitmark, txId, receiver, signature}, nil
 }
 
 func (t *TransferOffer) Countersign(receiver *Account) (*CountersignedTransferRecord, error) {
@@ -207,6 +209,34 @@ func (t *TransferOffer) Countersign(receiver *Account) (*CountersignedTransferRe
 	message = appendBytes(message, sig)
 
 	return &CountersignedTransferRecord{t.Link, t.Owner, t.Signature, hex.EncodeToString(receiver.AuthKey.Sign(message))}, nil
+}
+
+func (ct *CountersignedTransferRecord) Id() (string, error) {
+	link, err := hex.DecodeString(ct.Link)
+	if err != nil || len(link) != merkleDigestLength {
+		return "", ErrInvalidLength
+	}
+
+	sig, err := hex.DecodeString(ct.Signature)
+	if err != nil {
+		return "", ErrInvalidLength
+	}
+
+	countersig, err := hex.DecodeString(ct.Countersignature)
+	if err != nil {
+		return "", ErrInvalidLength
+	}
+
+	// pack and sign
+	message := toVarint64(transferCountersignedTag)
+	message = appendBytes(message, link)
+	message = append(message, 0) // payment not supported
+	message = appendAccount(message, ct.Owner)
+	message = appendBytes(message, sig)
+	message = appendBytes(message, countersig)
+
+	txIndex := sha3.Sum256(message)
+	return hex.EncodeToString(txIndex[:]), nil
 }
 
 const varint64MaximumBytes = 9

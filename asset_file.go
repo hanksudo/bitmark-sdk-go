@@ -27,7 +27,7 @@ type AssetFile struct {
 	Accessibility Accessibility
 }
 
-func NewAssetFile(path string, acs Accessibility) (*AssetFile, error) {
+func NewAssetFileFromPath(path string, acs Accessibility) (*AssetFile, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -43,6 +43,18 @@ func NewAssetFile(path string, acs Accessibility) (*AssetFile, error) {
 		Fingerprint:   fingerprint,
 		Accessibility: acs,
 	}, nil
+}
+
+func NewAssetFile(name string, content []byte, acs Accessibility) *AssetFile {
+	digest := sha3.Sum512(content)
+	fingerprint := "01" + hex.EncodeToString(digest[:])
+
+	return &AssetFile{
+		Name:          name,
+		Content:       content,
+		Fingerprint:   fingerprint,
+		Accessibility: acs,
+	}
 }
 
 func (af *AssetFile) Id() string {

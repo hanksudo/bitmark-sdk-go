@@ -8,7 +8,7 @@ import (
 
 type Config struct {
 	HTTPClient *http.Client
-	Network    Network
+	Network    string
 
 	APIEndpoint string
 	KeyEndpoint string
@@ -22,13 +22,18 @@ type Client struct {
 func NewClient(cfg *Config) *Client {
 	var apiEndpoint string
 	var keyEndpoint string
+	var network Network
 	switch cfg.Network {
-	case Testnet:
+	case "testnet":
 		apiEndpoint = "https://api.test.bitmark.com"
 		keyEndpoint = "https://assets.test.bitmark.com"
-	case Livenet:
+		network = Testnet
+	case "livenet":
 		apiEndpoint = "https://api.bitmark.com"
 		keyEndpoint = "https://assets.bitmark.com"
+		network = Livenet
+	default:
+		panic("unsupported network")
 	}
 
 	// allow endpoints customization
@@ -40,7 +45,7 @@ func NewClient(cfg *Config) *Client {
 	}
 
 	svc := &Service{cfg.HTTPClient, apiEndpoint, keyEndpoint}
-	return &Client{cfg.Network, svc}
+	return &Client{network, svc}
 }
 
 func (c *Client) CreateAccount() (*Account, error) {
@@ -172,7 +177,7 @@ func (c *Client) Transfer(acct *Account, bitmarkId, receiver string) (string, er
 	return c.service.createTransferTx(tr)
 }
 
-func (c *Client) SignTransferOffer(sender *Account, bitmarkId, receiver string) (*TransferOffer, error) {
+func (c *Client) SignTransferOffer(sender *Account, bitmarkId, receiver string, includeBitmark bool) (*TransferOffer, error) {
 	access, aerr := c.service.getAssetAccess(sender, bitmarkId)
 	if aerr != nil {
 		return nil, aerr
@@ -214,7 +219,14 @@ func (c *Client) SignTransferOffer(sender *Account, bitmarkId, receiver string) 
 		return nil, errors.New("not bitmark owner")
 	}
 
-	return NewTransferOffer(bitmarkId, bmk.HeadId, receiver, sender)
+	if includeBitmark {
+		return NewTransferOffer(bmk, bmk.HeadId, receiver, sender)
+	}
+	return NewTransferOffer(nil, bmk.HeadId, receiver, sender)
+}
+
+func (c *Client) CountersignedTransfer(t *CountersignedTransferRecord) (string, error) {
+	return c.service.createCountersignTransferTx(t)
 }
 
 func (c *Client) CountersignTransfer(receiver *Account, t *TransferOffer) (string, error) {

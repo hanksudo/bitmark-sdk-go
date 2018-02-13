@@ -72,9 +72,9 @@ func main() {
 
 	cfg := &sdk.Config{
 		HTTPClient:  &http.Client{Timeout: 5 * time.Second},
-		Network:     sdk.Testnet,
-		APIEndpoint: "https://api.devel.bitmark.com",
-		KeyEndpoint: "https://key.assets.devel.bitmark.com",
+		Network:     "testnet",
+		APIEndpoint: "https://api.test.bitmark.com",
+		KeyEndpoint: "https://key.assets.test.bitmark.com",
 	}
 	client = sdk.NewClient(cfg)
 
@@ -84,7 +84,7 @@ func main() {
 		fmt.Println("Account Number:", account.AccountNumber())
 		fmt.Println("-> seed:", account.Seed())
 		fmt.Println("-> recovery phrase:", strings.Join(account.RecoveryPhrase(), " "))
-	case "afile-issue": // -path=<file path> -name=<name> -metadata=<key1:val1,key2:val2> -acs=<accessibility> -quantity=<quantity>
+	case "afile-issue": // -p=<file path> -name=<name> -meta=<key1:val1,key2:val2> -acs=<accessibility> -quantity=<quantity>
 		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
 		fmt.Println("issuer:", issuer.AccountNumber())
 
@@ -92,7 +92,7 @@ func main() {
 			panic("asset file not specified")
 		}
 
-		af, _ := sdk.NewAssetFile(filepath, sdk.Accessibility(acs))
+		af, _ := sdk.NewAssetFileFromPath(filepath, sdk.Accessibility(acs))
 		if name != "" {
 			af.Describe(name, toMedatadata())
 		}
@@ -138,16 +138,16 @@ func main() {
 		fmt.Println("receiver:", receiver.AccountNumber())
 
 		// sign by sender
-		offer, err := client.SignTransferOffer(sender, bitmarkId, receiver.AccountNumber())
+		offer, err := client.SignTransferOffer(sender, bitmarkId, receiver.AccountNumber(), true)
 		if err != nil {
 			panic(err)
 		}
-
 		data, _ := json.Marshal(offer)
-		fmt.Println("transfer offer to be signed by receiver:\n", string(data))
+		fmt.Printf("transfer offer by sender: %s\n", string(data))
 
 		// sign by receiver
-		txId, err := client.CountersignTransfer(receiver, offer)
+		transfer, _ := offer.Countersign(receiver)
+		txId, err := client.CountersignedTransfer(transfer)
 		if err != nil {
 			panic(err)
 		}
@@ -163,18 +163,5 @@ func main() {
 		}
 		fmt.Println("File Name:", fileName)
 		fmt.Println("File Content:", string(content))
-	case "workspace":
-		sender, _ := client.RestoreAccountFromSeed(senderSeed)
-		receiver, _ := client.RestoreAccountFromSeed(receiverSeed)
-		err := client.RentBitmark(sender, "9ea451471209228baef87648840d43ed53a29908fc23d4506c013c83fdc21587", receiver.AccountNumber(), 1)
-		if err != nil {
-			panic(err)
-		}
-
-		result, err := client.ListLeases(receiver)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(result)
 	}
 }
