@@ -26,11 +26,11 @@ func NewClient(cfg *Config) *Client {
 	switch cfg.Network {
 	case "testnet":
 		apiEndpoint = "https://api.test.bitmark.com"
-		keyEndpoint = "https://assets.test.bitmark.com"
+		keyEndpoint = "https://key.assets.test.bitmark.com"
 		network = Testnet
 	case "livenet":
 		apiEndpoint = "https://api.bitmark.com"
-		keyEndpoint = "https://assets.bitmark.com"
+		keyEndpoint = "https://key.assets.bitmark.com"
 		network = Livenet
 	default:
 		panic("unsupported network")
