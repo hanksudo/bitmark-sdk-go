@@ -163,5 +163,42 @@ func main() {
 		}
 		fmt.Println("File Name:", fileName)
 		fmt.Println("File Content:", string(content))
+	case "workspace":
+		// sender, _ := client.RestoreAccountFromSeed(senderSeed)
+		// fmt.Println("sender:", sender.AccountNumber())
+		//
+		// // sign by sender
+		// offer, err := client.SignTransferOffer(sender, "fd907011334425ed71e46536d062ce0025dbf6cbbe5b0369c2f285ee66b3c526", "eZpG6Wi9SQvpDatEP7QGrx6nvzwd6s6R8DgMKgDbDY1R5bjzb9", false)
+		// fmt.Println(err)
+		// data, _ := json.Marshal(offer)
+		// fmt.Println(string(data))
+
+		receiver, _ := sdk.AccountFromRecoveryPhrase("achieve letter sadness antenna blouse daughter total escape crouch join peace slush recall erase prosper sketch kick trash deer glide inspire orange access kiss")
+		// receiver, _ := client.RestoreAccountFromSeed(receiverSeed)
+		fmt.Println("recevier:", receiver.AccountNumber())
+
+		offer := &sdk.TransferOffer{
+			Link:      "7ad27bd5122684840cb37ca877a32bd8c656436d9d9d3b54c501a80db5930b4f",
+			Owner:     "eKP4J6LP2rwXXwxoR3r1oVmgxSV8jJgavFQUgPwbyvaRsKsY96",
+			Signature: "fc5de04c401ad10abc45497c14714e22ff7509f6670fdc15b19fa641f3f48687e4bb8268c838e22974f03f61fa9a24f3736c66b5057facbab11ca5fb9ac44303",
+		}
+		transfer, err := offer.Countersign(receiver)
+		data, _ := json.Marshal(transfer)
+		fmt.Println(string(data))
+		fmt.Println(err)
+
+		sdk.Test()
+		// sender, _ := client.RestoreAccountFromSeed(senderSeed)
+		// receiver, _ := client.RestoreAccountFromSeed(receiverSeed)
+		// err := client.RentBitmark(sender, "9ea451471209228baef87648840d43ed53a29908fc23d4506c013c83fdc21587", receiver.AccountNumber(), 1)
+		// if err != nil {
+		// 	panic(err)
+		// }
+		//
+		// result, err := client.ListLeases(receiver)
+		// if err != nil {
+		// 	panic(err)
+		// }
+		// fmt.Println(result)
 	}
 }

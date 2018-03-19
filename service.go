@@ -241,6 +241,19 @@ func (s *Service) getEncPubkey(acctNo string) ([]byte, error) {
 	return hex.DecodeString(result.Key)
 }
 
+func (s *Service) queryBitmarks(filter *BitmarkFilter) ([]*Bitmark, error) {
+	req, _ := s.newAPIRequest("GET", "/v1/bitmarks?"+toURLValues(filter).Encode(), nil)
+
+	var result struct {
+		Bitmarks []*Bitmark `json:"bitmarks"`
+	}
+	if _, err := s.submitRequest(req, &result); err != nil {
+		return nil, err
+	}
+
+	return result.Bitmarks, nil
+}
+
 func (s *Service) getBitmark(bitmarkId string) (*Bitmark, error) {
 	req, _ := s.newAPIRequest("GET", "/v1/bitmarks/"+bitmarkId+"?provenance=true", nil)
 

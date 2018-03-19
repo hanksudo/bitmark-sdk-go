@@ -283,15 +283,20 @@ func toVarint64(value uint64) []byte {
 }
 
 type Bitmark struct {
-	Id         string       `json:"id"`
-	HeadId     string       `json:"head_id"`
-	Owner      string       `json:"owner"`
-	AssetId    string       `json:"asset_id"`
-	Issuer     string       `json:"issuer"`
-	Head       string       `json:"head"`
-	Status     string       `json:"status"`
-	Provenance []Provenance `json:"provenance"`
-	Asset      Asset        `json:"asset"`
+	HeadId      string       `json:"head_id"`
+	Owner       string       `json:"owner"`
+	AssetId     string       `json:"asset_id"`
+	Id          string       `json:"id"`
+	Issuer      string       `json:"issuer"`
+	IssuedAt    time.Time    `json:"issued_at"`
+	Head        string       `json:"head"`
+	Status      string       `json:"status"`
+	BlockNumber uint         `json:"block_number"`
+	Offset      uint         `json:"offset"`
+	CreatedAt   time.Time    `json:"created_at"`
+	ConfirmedAt time.Time    `json:"confirmed_at"`
+	Provenance  []Provenance `json:"provenance"`
+	Asset       Asset        `json:"asset"`
 }
 
 type Provenance struct {
