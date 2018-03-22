@@ -127,6 +127,11 @@ func (c *Client) IssueByAssetId(acct *Account, assetId string, quantity int) ([]
 	return bitmarkIds, err
 }
 
+func (c *Client) Issue(issues []*IssueRecord) ([]string, error) {
+	bitmarkIds, err := c.service.createIssueTx(nil, issues)
+	return bitmarkIds, err
+}
+
 func (c *Client) Transfer(acct *Account, bitmarkId, receiver string) (string, error) {
 	access, aerr := c.service.getAssetAccess(acct, bitmarkId)
 	if aerr != nil {
