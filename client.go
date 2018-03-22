@@ -127,8 +127,8 @@ func (c *Client) IssueByAssetId(acct *Account, assetId string, quantity int) ([]
 	return bitmarkIds, err
 }
 
-func (c *Client) Issue(issues []*IssueRecord) ([]string, error) {
-	bitmarkIds, err := c.service.createIssueTx(nil, issues)
+func (c *Client) Issue(asset *AssetRecord, issues []*IssueRecord) ([]string, error) {
+	bitmarkIds, err := c.service.createIssueTx(asset, issues)
 	return bitmarkIds, err
 }
 
