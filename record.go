@@ -114,6 +114,28 @@ func NewIssueRecord(assetIndex string, issuer *Account) (*IssueRecord, error) {
 	}, nil
 }
 
+func (i *IssueRecord) Id() (string, error) {
+	assetIndex, err := hex.DecodeString(i.AssetIndex)
+	if err != nil || len(assetIndex) != assetIndexLength {
+		return "", ErrInvalidLength
+	}
+
+	sig, err := hex.DecodeString(i.Signature)
+	if err != nil {
+		return "", ErrInvalidLength
+	}
+
+	// pack and sign
+	message := toVarint64(issueTag)
+	message = appendBytes(message, assetIndex)
+	message = appendAccount(message, i.Owner)
+	message = appendUint64(message, i.Nonce)
+	message = appendBytes(message, sig)
+
+	txIndex := sha3.Sum256(message)
+	return hex.EncodeToString(txIndex[:]), nil
+}
+
 func NewIssueRecords(assetIndex string, issuer *Account, quantity int) ([]*IssueRecord, error) {
 	issues := make([]*IssueRecord, quantity)
 	for i := 0; i < quantity; i++ {
