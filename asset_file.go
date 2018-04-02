@@ -16,6 +16,11 @@ const (
 	Private Accessibility = "private"
 )
 
+type AssetInfo struct {
+	Name     string
+	Metadata map[string]string
+}
+
 type AssetFile struct {
 	propertyName     string
 	propertyMetadata map[string]string
@@ -60,11 +65,6 @@ func NewAssetFile(name string, content []byte, acs Accessibility) *AssetFile {
 func (af *AssetFile) Id() string {
 	assetIndex := sha3.Sum512([]byte(af.Fingerprint))
 	return hex.EncodeToString(assetIndex[:])
-}
-
-func (af *AssetFile) Describe(propertyName string, propertyMetadata map[string]string) {
-	af.propertyName = propertyName
-	af.propertyMetadata = propertyMetadata
 }
 
 func (af *AssetFile) equivalent(asset *Asset) bool {

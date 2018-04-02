@@ -93,12 +93,16 @@ func main() {
 		}
 
 		af, _ := sdk.NewAssetFileFromPath(filepath, sdk.Accessibility(acs))
+
+		var assetInfo *sdk.AssetInfo
 		if name != "" {
-			af.Describe(name, toMedatadata())
+			assetInfo = &sdk.AssetInfo{
+				Name: name,
+			}
 		}
 		fmt.Println("Asset ID:", af.Id())
 
-		bitmarkIds, err := client.IssueByAssetFile(issuer, af, quantity)
+		bitmarkIds, err := client.IssueByAssetFile(issuer, af, quantity, assetInfo)
 		if err != nil {
 			panic(err)
 		}

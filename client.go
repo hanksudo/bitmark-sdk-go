@@ -95,11 +95,12 @@ func (c *Client) RestoreAccountFromSeed(s string) (*Account, error) {
 	return &Account{seed: seed, AuthKey: authKey, EncrKey: encrKey}, nil
 }
 
-func (c *Client) IssueByAssetFile(acct *Account, af *AssetFile, quantity int) ([]string, error) {
+func (c *Client) IssueByAssetFile(acct *Account, af *AssetFile, quantity int, info *AssetInfo) ([]string, error) {
 	var asset *AssetRecord
-	if af.propertyName != "" {
+
+	if info != nil {
 		var err error
-		asset, err = NewAssetRecord(af.propertyName, af.Fingerprint, af.propertyMetadata, acct)
+		asset, err = NewAssetRecord(info.Name, af.Fingerprint, info.Metadata, acct)
 		if err != nil {
 			return nil, err
 		}
