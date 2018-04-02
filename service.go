@@ -204,6 +204,22 @@ func (s *Service) createCountersignTransferTx(record *CountersignedTransferRecor
 	return result[0].TxId, nil
 }
 
+func (s *Service) submitTransferOffer(acct *Account, record *TransferOffer, metadata interface{}) (string, error) {
+	body := toJSONRequestBody(map[string]interface{}{
+		"from":     acct.AccountNumber(),
+		"record":   record,
+		"metadata": metadata,
+	})
+	req, _ := s.newAPIRequest("POST", "/v2/transfer_offers/", body)
+
+	var result transferOffer
+	if _, err := s.submitRequest(req, &result); err != nil {
+		return "", err
+	}
+
+	return result.OfferId, nil
+}
+
 func (s *Service) addSessionData(acct *Account, bitmarkId, receiver string, data *SessionData) error {
 	body := toJSONRequestBody(map[string]interface{}{
 		"bitmark_id":   bitmarkId,

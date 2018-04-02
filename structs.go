@@ -21,3 +21,7 @@ type accessByRenting struct {
 	Duration uint   `json:"duration"`
 	ExpTime  int64  `json:"expiration_time"`
 }
+
+type transferOffer struct {
+	OfferId string `json:"offer_id"`
+}

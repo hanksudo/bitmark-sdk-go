@@ -156,6 +156,27 @@ func main() {
 			panic(err)
 		}
 		fmt.Println("Transaction ID: ", txId)
+	case "transfer-offer": // -bid=<bitmark id>
+		sender, _ := client.RestoreAccountFromSeed(senderSeed)
+		fmt.Println("sender:", sender.AccountNumber())
+		receiver, _ := client.RestoreAccountFromSeed(receiverSeed)
+		fmt.Println("receiver:", receiver.AccountNumber())
+
+		// sign by sender
+		offer, err := client.SignTransferOffer(sender, bitmarkId, receiver.AccountNumber(), true)
+		if err != nil {
+			panic(err)
+		}
+		data, _ := json.Marshal(offer)
+		fmt.Printf("transfer offer by sender: %s\n", string(data))
+
+		offerId, err := client.SubmitTransferOffer(sender, offer, map[string]interface{}{})
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("transfer offer id: %s\n", offerId)
+
 	case "download":
 		owner, _ := client.RestoreAccountFromSeed(ownerSeed)
 		fmt.Println("owner:", owner.AccountNumber())

@@ -231,6 +231,10 @@ func (c *Client) SignTransferOffer(sender *Account, bitmarkId, receiver string, 
 	return NewTransferOffer(nil, bmk.HeadId, receiver, sender)
 }
 
+func (c *Client) SubmitTransferOffer(sender *Account, t *TransferOffer, metadata interface{}) (string, error) {
+	return c.service.submitTransferOffer(sender, t, metadata)
+}
+
 func (c *Client) CountersignedTransfer(t *CountersignedTransferRecord) (string, error) {
 	return c.service.createCountersignTransferTx(t)
 }
