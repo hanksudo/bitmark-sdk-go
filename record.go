@@ -2,6 +2,7 @@ package bitmarksdk
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync/atomic"
@@ -175,11 +176,19 @@ func NewTransferRecord(txId string, receiver string, owner *Account) (*TransferR
 	return &TransferRecord{txId, receiver, signature}, nil
 }
 
-type TransferOffer struct {
+type TransferOfferRecord struct {
 	Bitmark   *Bitmark `json:"bitmark,omitempty"`
 	Link      string   `json:"link"`
 	Owner     string   `json:"owner"`
 	Signature string   `json:"signature"`
+}
+
+func (t TransferOfferRecord) String() string {
+	b, err := json.Marshal(t)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 type CountersignedTransferRecord struct {
@@ -189,7 +198,7 @@ type CountersignedTransferRecord struct {
 	Countersignature string `json:"countersignature,omitempty"`
 }
 
-func NewTransferOffer(bitmark *Bitmark, txId, receiver string, sender *Account) (*TransferOffer, error) {
+func NewTransferOffer(bitmark *Bitmark, txId, receiver string, sender *Account) (*TransferOfferRecord, error) {
 	link, err := hex.DecodeString(txId)
 	if err != nil || len(link) != merkleDigestLength {
 		return nil, ErrInvalidLength
@@ -205,10 +214,10 @@ func NewTransferOffer(bitmark *Bitmark, txId, receiver string, sender *Account) 
 	message = append(message, 0) // payment not supported
 	message = appendAccount(message, receiver)
 	signature := hex.EncodeToString(sender.AuthKey.Sign(message))
-	return &TransferOffer{bitmark, txId, receiver, signature}, nil
+	return &TransferOfferRecord{bitmark, txId, receiver, signature}, nil
 }
 
-func (t *TransferOffer) Countersign(receiver *Account) (*CountersignedTransferRecord, error) {
+func (t *TransferOfferRecord) Countersign(receiver *Account) (*CountersignedTransferRecord, error) {
 	link, err := hex.DecodeString(t.Link)
 	if err != nil || len(link) != merkleDigestLength {
 		return nil, ErrInvalidLength

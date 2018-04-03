@@ -183,7 +183,7 @@ func (c *Client) Transfer(acct *Account, bitmarkId, receiver string) (string, er
 	return c.service.createTransferTx(tr)
 }
 
-func (c *Client) SignTransferOffer(sender *Account, bitmarkId, receiver string, includeBitmark bool) (*TransferOffer, error) {
+func (c *Client) SignTransferOffer(sender *Account, bitmarkId, receiver string, includeBitmark bool) (*TransferOfferRecord, error) {
 	access, aerr := c.service.getAssetAccess(sender, bitmarkId)
 	if aerr != nil {
 		return nil, aerr
@@ -231,15 +231,23 @@ func (c *Client) SignTransferOffer(sender *Account, bitmarkId, receiver string, 
 	return NewTransferOffer(nil, bmk.HeadId, receiver, sender)
 }
 
-func (c *Client) SubmitTransferOffer(sender *Account, t *TransferOffer, metadata interface{}) (string, error) {
+func (c *Client) SubmitTransferOffer(sender *Account, t *TransferOfferRecord, metadata interface{}) (string, error) {
 	return c.service.submitTransferOffer(sender, t, metadata)
+}
+
+func (c *Client) GetTransferOffer(sender *Account, offerId string) (*TransferOffer, error) {
+	return c.service.getTransferOffer(sender, offerId)
+}
+
+func (c *Client) CompleteTransferOffer(sender *Account, offerId, action, countersignature string) (string, error) {
+	return c.service.completeTransferOffer(sender, offerId, action, countersignature)
 }
 
 func (c *Client) CountersignedTransfer(t *CountersignedTransferRecord) (string, error) {
 	return c.service.createCountersignTransferTx(t)
 }
 
-func (c *Client) CountersignTransfer(receiver *Account, t *TransferOffer) (string, error) {
+func (c *Client) CountersignTransfer(receiver *Account, t *TransferOfferRecord) (string, error) {
 	record, err := t.Countersign(receiver)
 	if err != nil {
 		return "", err

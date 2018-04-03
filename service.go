@@ -204,20 +204,57 @@ func (s *Service) createCountersignTransferTx(record *CountersignedTransferRecor
 	return result[0].TxId, nil
 }
 
-func (s *Service) submitTransferOffer(acct *Account, record *TransferOffer, metadata interface{}) (string, error) {
+func (s *Service) submitTransferOffer(acct *Account, record *TransferOfferRecord, metadata interface{}) (string, error) {
 	body := toJSONRequestBody(map[string]interface{}{
 		"from":     acct.AccountNumber(),
 		"record":   record,
 		"metadata": metadata,
 	})
-	req, _ := s.newAPIRequest("POST", "/v2/transfer_offers/", body)
 
-	var result transferOffer
+	req, _ := s.newSignedAPIRequest("POST", "/v2/transfer_offers/", body, acct, "transferOffer", record.String())
+
+	var result map[string]string
 	if _, err := s.submitRequest(req, &result); err != nil {
 		return "", err
 	}
 
-	return result.OfferId, nil
+	return result["offer_id"], nil
+}
+
+func (s *Service) getTransferOffer(acct *Account, offerId string) (*TransferOffer, error) {
+	req, _ := s.newSignedAPIRequest("GET", fmt.Sprintf("/v2/transfer_offers/?offer_id=%s", offerId), nil, acct, "transferOffer", "get")
+
+	var result struct {
+		Offer *TransferOffer `json:"offer"`
+	}
+
+	if _, err := s.submitRequest(req, &result); err != nil {
+		return nil, err
+	}
+
+	return result.Offer, nil
+}
+
+func (s *Service) completeTransferOffer(acct *Account, offerId, action, countersignature string) (string, error) {
+	body := toJSONRequestBody(map[string]interface{}{
+		"id": offerId,
+		"reply": map[string]string{
+			"action":           action,
+			"countersignature": countersignature,
+		},
+	})
+
+	req, _ := s.newSignedAPIRequest("PATCH", "/v2/transfer_offers/", body, acct, "transferOffer", "patch")
+
+	var result struct {
+		TxId string `json:"tx_id"`
+	}
+
+	if _, err := s.submitRequest(req, &result); err != nil {
+		return "", err
+	}
+
+	return result.TxId, nil
 }
 
 func (s *Service) addSessionData(acct *Account, bitmarkId, receiver string, data *SessionData) error {
