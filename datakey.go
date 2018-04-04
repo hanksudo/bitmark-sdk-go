@@ -43,7 +43,7 @@ func (k *ChaCha20DataKey) Encrypt(plaintext []byte) ([]byte, error) {
 
 	nonce := make([]byte, chacha20poly1305.NonceSize)
 
-	ciphertext := aead.Seal(nil, nonce, plaintext, nil)
+	ciphertext := aead.Seal(plaintext[:0], nonce, plaintext, nil)
 
 	return ciphertext, nil
 }
@@ -57,7 +57,7 @@ func (k *ChaCha20DataKey) Decrypt(ciphertext []byte) ([]byte, error) {
 
 	nonce := make([]byte, chacha20poly1305.NonceSize)
 
-	plaintext, err := aead.Open(nil, nonce, ciphertext, nil)
+	plaintext, err := aead.Open(ciphertext[:0], nonce, ciphertext, nil)
 	if err != nil {
 		return nil, err
 	}
