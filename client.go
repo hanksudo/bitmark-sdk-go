@@ -231,8 +231,8 @@ func (c *Client) SignTransferOffer(sender *Account, bitmarkId, receiver string, 
 	return NewTransferOffer(nil, bmk.HeadId, receiver, sender)
 }
 
-func (c *Client) SubmitTransferOffer(sender *Account, t *TransferOfferRecord, metadata interface{}) (string, error) {
-	return c.service.submitTransferOffer(sender, t, metadata)
+func (c *Client) SubmitTransferOffer(sender *Account, t *TransferOfferRecord, extraInfo interface{}) (string, error) {
+	return c.service.submitTransferOffer(sender, t, extraInfo)
 }
 
 func (c *Client) GetTransferOffer(sender *Account, offerId string) (*TransferOffer, error) {
