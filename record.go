@@ -115,6 +115,31 @@ func NewIssueRecord(assetIndex string, issuer *Account) (*IssueRecord, error) {
 	}, nil
 }
 
+func NewIssueRecordWithNonce(assetIndex string, issuer *Account, nonce uint64) (*IssueRecord, error) {
+	assetIndexBytes, err := hex.DecodeString(assetIndex)
+	if err != nil || len(assetIndexBytes) != assetIndexLength {
+		return nil, ErrInvalidLength
+	}
+
+	if issuer == nil {
+		return nil, ErrInvalidAccount
+	}
+
+	// pack and sign
+	message := toVarint64(issueTag)
+	message = appendBytes(message, assetIndexBytes)
+	message = appendBytes(message, issuer.bytes())
+	message = appendUint64(message, nonce)
+	signature := hex.EncodeToString(issuer.AuthKey.Sign(message))
+
+	return &IssueRecord{
+		assetIndex,
+		issuer.AccountNumber(),
+		nonce,
+		signature,
+	}, nil
+}
+
 func (i *IssueRecord) Id() (string, error) {
 	assetIndex, err := hex.DecodeString(i.AssetIndex)
 	if err != nil || len(assetIndex) != assetIndexLength {
@@ -137,15 +162,31 @@ func (i *IssueRecord) Id() (string, error) {
 	return hex.EncodeToString(txIndex[:]), nil
 }
 
-func NewIssueRecords(assetIndex string, issuer *Account, quantity int) ([]*IssueRecord, error) {
+func NewIssueRecords(assetIndex string, issuer *Account, quantity int, nonces ...uint64) ([]*IssueRecord, error) {
 	issues := make([]*IssueRecord, quantity)
-	for i := 0; i < quantity; i++ {
-		var issue *IssueRecord
-		issue, err := NewIssueRecord(assetIndex, issuer)
-		if err != nil {
-			return nil, err
+	if nonces != nil {
+		if len(nonces) != quantity {
+			return nil, errors.New("the nonce count is not match the issue quantity")
 		}
-		issues[i] = issue
+		for i, nonce := range nonces {
+			var issue *IssueRecord
+
+			issue, err := NewIssueRecordWithNonce(assetIndex, issuer, nonce)
+			if err != nil {
+				return nil, err
+			}
+			issues[i] = issue
+		}
+	} else {
+		for i := 0; i < quantity; i++ {
+			var issue *IssueRecord
+
+			issue, err := NewIssueRecord(assetIndex, issuer)
+			if err != nil {
+				return nil, err
+			}
+			issues[i] = issue
+		}
 	}
 	return issues, nil
 }

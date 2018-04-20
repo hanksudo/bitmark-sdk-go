@@ -118,6 +118,29 @@ func (c *Client) IssueByAssetFile(acct *Account, af *AssetFile, quantity int, in
 	return bitmarkIds, err
 }
 
+func (c *Client) IssueByAssetFileWithNonces(acct *Account, af *AssetFile, info *AssetInfo, nonces []uint64) ([]string, error) {
+	var asset *AssetRecord
+
+	if info != nil {
+		var err error
+		asset, err = NewAssetRecord(info.Name, af.Fingerprint, info.Metadata, acct)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	issues, err := NewIssueRecords(af.Id(), acct, len(nonces), nonces...)
+	if err != nil {
+		return nil, err
+	}
+
+	if uerr := c.service.uploadAsset(acct, af); uerr != nil {
+		return nil, uerr
+	}
+	bitmarkIds, err := c.service.createIssueTx(asset, issues)
+	return bitmarkIds, err
+}
+
 func (c *Client) IssueByAssetId(acct *Account, assetId string, quantity int) ([]string, error) {
 	issues, err := NewIssueRecords(assetId, acct, quantity)
 	if err != nil {
