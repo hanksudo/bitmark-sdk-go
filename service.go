@@ -180,7 +180,7 @@ func (s *Service) createTransferTx(record *TransferRecord) (string, error) {
 	body := toJSONRequestBody(map[string]interface{}{
 		"transfer": record,
 	})
-	req, _ := s.newAPIRequest("POST", "/v1/transfer", body)
+	req, _ := s.newAPIRequest("POST", "/v2/transfer", body)
 
 	result := make([]transaction, 0)
 	if _, err := s.submitRequest(req, &result); err != nil {
