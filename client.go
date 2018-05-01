@@ -366,3 +366,7 @@ func (c *Client) DownloadAssetByLease(acct *Account, access *accessByRenting) ([
 func (c *Client) QueryBitmarks(filter *BitmarkFilter) ([]*Bitmark, error) {
 	return c.service.queryBitmarks(filter)
 }
+
+func (c *Client) GetBitmark(bitmarkId string) (*Bitmark, error) {
+	return c.service.getBitmark(bitmarkId)
+}

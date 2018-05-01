@@ -172,6 +172,36 @@ func main() {
 
 		fmt.Printf("transfer offer id: %s\n", offerId)
 
+	case "bitmark":
+		owner, err := client.RestoreAccountFromSeed(ownerSeed)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("owner:", owner.AccountNumber())
+		bitmark, err := client.GetBitmark(bitmarkId)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%#v", bitmark)
+	case "bitmarks":
+		issuer, err := client.RestoreAccountFromSeed(issuerSeed)
+		if err != nil {
+			panic(err)
+		}
+		filter := sdk.BitmarkFilter{
+			Owner: issuer.AccountNumber(),
+			Limit: 100,
+			Asset: true,
+		}
+		bitmarks, err := client.QueryBitmarks(&filter)
+		fmt.Println(len(bitmarks))
+		if err != nil {
+			panic(err)
+		}
+
+		for _, bitmark := range bitmarks {
+			fmt.Printf("%#v", bitmark)
+		}
 	case "download":
 		owner, _ := client.RestoreAccountFromSeed(ownerSeed)
 		fmt.Println("owner:", owner.AccountNumber())
