@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -143,6 +144,9 @@ func (s *Service) getAssetContent(url string) (string, []byte, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.Header.Get("Content-Disposition") == "" {
+		return "", nil, errors.New("No asset file")
+	}
 	_, params, _ := mime.ParseMediaType(resp.Header["Content-Disposition"][0])
 	filename := params["filename"]
 
