@@ -7,10 +7,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	sdk "github.com/hanksudo/bitmark-sdk-go"
+	imgcat "github.com/martinlindhe/imgcat/lib"
 )
 
 var (
@@ -22,8 +24,8 @@ var (
 	ownerSeed    string
 
 	// issue
-	filepath string
-	acs      string
+	assetPath string
+	acs       string
 
 	assetId string
 
@@ -44,7 +46,7 @@ func parseVars() {
 	subcmd.StringVar(&receiverSeed, "receiver", "5XEECt4yuMK4xqBLr9ky5FBWpkAR6VHNZSz8fUzZDXPnN3D9MeivTSA", "Receiver Seed")
 	subcmd.StringVar(&ownerSeed, "owner", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "Owner Seed")
 
-	subcmd.StringVar(&filepath, "p", "", "")
+	subcmd.StringVar(&assetPath, "p", "", "")
 	subcmd.StringVar(&acs, "acs", "public", "")
 	subcmd.StringVar(&name, "name", "", "")
 	subcmd.StringVar(&rawMetadata, "meta", "", "")
@@ -93,11 +95,11 @@ func main() {
 		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
 		fmt.Println("issuer:", issuer.AccountNumber())
 
-		if filepath == "" || !pathExists(filepath) {
+		if assetPath == "" || !pathExists(assetPath) {
 			panic("asset file not specified")
 		}
 
-		af, _ := sdk.NewAssetFileFromPath(filepath, sdk.Accessibility(acs))
+		af, _ := sdk.NewAssetFileFromPath(assetPath, sdk.Accessibility(acs))
 
 		assetInfo := &sdk.AssetInfo{
 			Name: name,
@@ -210,7 +212,10 @@ func main() {
 			fmt.Printf("%#v\n", bitmark)
 		}
 	case "download":
-		owner, _ := client.RestoreAccountFromSeed(ownerSeed)
+		owner, err := client.RestoreAccountFromSeed(ownerSeed)
+		if err != nil {
+			panic(err)
+		}
 		fmt.Println("owner:", owner.AccountNumber())
 
 		fileName, content, err := client.DownloadAsset(owner, bitmarkId)
@@ -219,7 +224,15 @@ func main() {
 			return
 		}
 		fmt.Println("File Name:", fileName)
-		fmt.Println("File Content:", string(content))
+		fmt.Println("File Content:", len(content))
+
+		if include([]string{".jpg", ".png"}, filepath.Ext(fileName)) {
+			f, _ := os.Create(fileName)
+			f.Write(content)
+			defer f.Close()
+
+			imgcat.CatFile(fileName, os.Stdout)
+		}
 	}
 }
 
@@ -228,4 +241,20 @@ func pathExists(path string) bool {
 		return false
 	}
 	return true
+}
+
+// Index - returns the first index of the target string
+// or -1 if no match is found
+func index(vs []string, t string) int {
+	for i, v := range vs {
+		if v == t {
+			return i
+		}
+	}
+	return -1
+}
+
+// Include - returns true if the target string t is in the slice.
+func include(vs []string, t string) bool {
+	return index(vs, t) >= 0
 }
