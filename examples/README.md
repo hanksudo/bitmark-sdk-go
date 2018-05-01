@@ -1,21 +1,26 @@
 # bitmark-sdk-go example
 
+[Testnet Registry](https://registry.test.bitmark.com)
+[API Doc](https://bitmarkcoreapi.docs.apiary.io)
+
 ### Create New Account
 
 ```bash
 go run main.go new-account
 ```
 
-### Issue by asset
+### Issue
 
 [Bitmark Account](https://registry.test.bitmark.com/account/efPvC7aGuZL4Hx19nEJZ4shmmGdAUXYeDE6peQdQ6HT6Ua3oao/owned)
 
 ```bash
-go run main.go issue-asset-file \
+echo `date +%s` > test.txt
+go run main.go issue \
     -issuer 5XEECtre5nDKsLSzL4jPuPyPJ5jccf1EPN6cZWNnh8pnxjyicscmE1n \
-    -p test.jpg \
-    -name "晴天娃娃" \
-    -meta="DESCRIPTION:晴天娃娃照片"
+    -acs "public" \
+    -p test.txt \
+    -name "Test file" \
+    -meta "KEY:value"
 ```
 
 ### Download asset
