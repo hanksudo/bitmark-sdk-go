@@ -92,7 +92,7 @@ func main() {
 		fmt.Println("Account Number:", account.AccountNumber())
 		fmt.Println("-> seed:", account.Seed())
 		fmt.Println("-> recovery phrase:", strings.Join(account.RecoveryPhrase(), " "))
-	case "issue-asset-file": // -p=<file path> -name=<name> -meta=<key1:val1,key2:val2> -acs=<accessibility> -quantity=<quantity>
+	case "issue": // -p=<file path> -name=<name> -meta=<key1:val1,key2:val2> -acs=<accessibility> -quantity=<quantity>
 		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
 		fmt.Println("issuer:", issuer.AccountNumber())
 
