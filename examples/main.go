@@ -38,19 +38,24 @@ var (
 func parseVars() {
 	subcmd := flag.NewFlagSet("subcmd", flag.ExitOnError)
 
-	subcmd.StringVar(&issuerSeed, "issuer", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "")
-	subcmd.StringVar(&senderSeed, "sender", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "")
-	subcmd.StringVar(&receiverSeed, "receiver", "5XEECt4yuMK4xqBLr9ky5FBWpkAR6VHNZSz8fUzZDXPnN3D9MeivTSA", "")
-	subcmd.StringVar(&ownerSeed, "owner", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "")
+	subcmd.StringVar(&issuerSeed, "issuer", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "Issuer Seed")
+	subcmd.StringVar(&senderSeed, "sender", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "Sender Seed")
+	subcmd.StringVar(&receiverSeed, "receiver", "5XEECt4yuMK4xqBLr9ky5FBWpkAR6VHNZSz8fUzZDXPnN3D9MeivTSA", "Receiver Seed")
+	subcmd.StringVar(&ownerSeed, "owner", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "Owner Seed")
 
 	subcmd.StringVar(&filepath, "p", "", "")
 	subcmd.StringVar(&acs, "acs", "public", "")
 	subcmd.StringVar(&name, "name", "", "")
 	subcmd.StringVar(&rawMetadata, "meta", "", "")
-	subcmd.StringVar(&assetId, "aid", "", "")
+	subcmd.StringVar(&assetId, "aid", "", "Asset ID")
 	subcmd.IntVar(&quantity, "quantity", 1, "")
 
-	subcmd.StringVar(&bitmarkId, "bid", "", "")
+	subcmd.StringVar(&bitmarkId, "bid", "", "Bitmark ID")
+
+	if len(os.Args) < 2 {
+		subcmd.PrintDefaults()
+		os.Exit(2)
+	}
 
 	subcmd.Parse(os.Args[2:])
 }
