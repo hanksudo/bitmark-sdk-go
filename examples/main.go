@@ -87,12 +87,12 @@ func main() {
 	log.Println("You are now on", client.Network)
 
 	switch os.Args[1] {
-	case "newacct":
+	case "new-account":
 		account, _ := client.CreateAccount()
 		fmt.Println("Account Number:", account.AccountNumber())
 		fmt.Println("-> seed:", account.Seed())
 		fmt.Println("-> recovery phrase:", strings.Join(account.RecoveryPhrase(), " "))
-	case "afile-issue": // -p=<file path> -name=<name> -meta=<key1:val1,key2:val2> -acs=<accessibility> -quantity=<quantity>
+	case "issue-asset-file": // -p=<file path> -name=<name> -meta=<key1:val1,key2:val2> -acs=<accessibility> -quantity=<quantity>
 		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
 		fmt.Println("issuer:", issuer.AccountNumber())
 
@@ -103,7 +103,8 @@ func main() {
 		af, _ := sdk.NewAssetFileFromPath(assetPath, sdk.Accessibility(acs))
 
 		assetInfo := &sdk.AssetInfo{
-			Name: name,
+			Name:     name,
+			Metadata: toMedatadata(),
 		}
 		fmt.Println("Asset ID:", af.Id())
 
@@ -116,7 +117,7 @@ func main() {
 		for i, id := range bitmarkIds {
 			fmt.Printf("\t[%d] %s\n", i, id)
 		}
-	case "aid-issue": // -aid=<asset id>
+	case "issue-asset-id": // -aid=<asset id>
 		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
 		fmt.Println("issuer:", issuer.AccountNumber())
 
