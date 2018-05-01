@@ -102,9 +102,12 @@ func main() {
 
 		af, _ := sdk.NewAssetFileFromPath(assetPath, sdk.Accessibility(acs))
 
-		assetInfo := &sdk.AssetInfo{
-			Name:     name,
-			Metadata: toMetaData(),
+		var assetInfo *sdk.AssetInfo
+		if name != "" {
+			assetInfo = &sdk.AssetInfo{
+				Name:     name,
+				Metadata: toMetaData(),
+			}
 		}
 
 		fmt.Println("Asset ID:", af.Id())
