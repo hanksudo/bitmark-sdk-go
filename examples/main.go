@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	sdk "github.com/bitmark-inc/bitmark-sdk-go"
+	sdk "github.com/hanksudo/bitmark-sdk-go"
 )
 
 var (
