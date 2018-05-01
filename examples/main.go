@@ -71,10 +71,8 @@ func main() {
 	parseVars()
 
 	cfg := &sdk.Config{
-		HTTPClient:  &http.Client{Timeout: 5 * time.Second},
-		Network:     "testnet",
-		APIEndpoint: "https://api.test.bitmark.com",
-		KeyEndpoint: "https://key.assets.test.bitmark.com",
+		HTTPClient: &http.Client{Timeout: 5 * time.Second},
+		Network:    "testnet",
 	}
 	client = sdk.NewClient(cfg)
 
