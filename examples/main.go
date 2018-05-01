@@ -86,7 +86,7 @@ func main() {
 		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
 		fmt.Println("issuer:", issuer.AccountNumber())
 
-		if filepath == "" {
+		if filepath == "" || !pathExists(filepath) {
 			panic("asset file not specified")
 		}
 
@@ -184,4 +184,11 @@ func main() {
 		fmt.Println("File Name:", fileName)
 		fmt.Println("File Content:", string(content))
 	}
+}
+
+func pathExists(path string) bool {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
