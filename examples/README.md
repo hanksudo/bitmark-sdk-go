@@ -19,8 +19,24 @@ go run main.go issue \
     -issuer 5XEECtre5nDKsLSzL4jPuPyPJ5jccf1EPN6cZWNnh8pnxjyicscmE1n \
     -acs "public" \
     -p test.txt \
+    -name "Test issue file" \
+    -meta "KEY:value"
+```
+
+```bash
+echo `date +%s` > test.txt
+go run main.go issue \
+    -issuer 5XEECtre5nDKsLSzL4jPuPyPJ5jccf1EPN6cZWNnh8pnxjyicscmE1n \
+    -acs "private" \
+    -p test.txt \
     -name "Test file" \
     -meta "KEY:value"
+```
+
+### Issue by asset Id
+
+```bash
+go run main.go issue-asset-id -aid b0f3e9ebca129d13c7986aa384b29c169eaa3f9406c02689216c72af83246df861b8e07bbbf250b1b24d3397f38c870fcdaff3a278c6a3f86f12504c7ea24164 -issuer 5XEECtre5nDKsLSzL4jPuPyPJ5jccf1EPN6cZWNnh8pnxjyicscmE1n
 ```
 
 ### Download asset
