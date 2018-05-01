@@ -42,10 +42,10 @@ var (
 func parseVars() {
 	subcmd := flag.NewFlagSet("subcmd", flag.ExitOnError)
 
-	subcmd.StringVar(&issuerSeed, "issuer", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "Issuer Seed")
-	subcmd.StringVar(&senderSeed, "sender", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "Sender Seed")
-	subcmd.StringVar(&receiverSeed, "receiver", "5XEECt4yuMK4xqBLr9ky5FBWpkAR6VHNZSz8fUzZDXPnN3D9MeivTSA", "Receiver Seed")
-	subcmd.StringVar(&ownerSeed, "owner", "5XEECttxvRBzxzAmuV4oh6T1FcQu4mBg8eWd9wKbf8hweXsfwtJ8sfH", "Owner Seed")
+	subcmd.StringVar(&issuerSeed, "issuer", "", "Issuer Seed")
+	subcmd.StringVar(&senderSeed, "sender", "", "Sender Seed")
+	subcmd.StringVar(&receiverSeed, "receiver", "", "Receiver Seed")
+	subcmd.StringVar(&ownerSeed, "owner", "", "Owner Seed")
 
 	subcmd.StringVar(&assetPath, "p", "", "")
 	subcmd.StringVar(&acs, "acs", "public", "")
@@ -122,7 +122,10 @@ func main() {
 			fmt.Printf("\t[%d] %s\n", i, id)
 		}
 	case "issue-asset-id": // -aid=<asset id>
-		issuer, _ := client.RestoreAccountFromSeed(issuerSeed)
+		issuer, err := client.RestoreAccountFromSeed(issuerSeed)
+		if err != nil {
+			panic(err)
+		}
 		fmt.Println("issuer:", issuer.AccountNumber())
 
 		bitmarkIds, err := client.IssueByAssetId(issuer, assetId, quantity)
