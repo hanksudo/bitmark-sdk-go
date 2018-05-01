@@ -235,6 +235,8 @@ func main() {
 			defer f.Close()
 
 			imgcat.CatFile(fileName, os.Stdout)
+		} else if filepath.Ext(fileName) == ".txt" {
+			fmt.Println(string(content))
 		}
 	}
 }
