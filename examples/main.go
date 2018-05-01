@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -80,6 +81,7 @@ func main() {
 		Network:    "testnet",
 	}
 	client = sdk.NewClient(cfg)
+	log.Println("You are now on", client.Network)
 
 	switch os.Args[1] {
 	case "newacct":
