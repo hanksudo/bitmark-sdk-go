@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	sdk "github.com/hanksudo/bitmark-sdk-go"
 	imgcat "github.com/martinlindhe/imgcat/lib"
 )
@@ -191,7 +192,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("%#v", bitmark)
+		spew.Dump(bitmark)
 	case "bitmarks":
 		issuer, err := client.RestoreAccountFromSeed(issuerSeed)
 		if err != nil {
@@ -209,7 +210,7 @@ func main() {
 		}
 
 		for _, bitmark := range bitmarks {
-			fmt.Printf("%#v\n", bitmark)
+			spew.Dump(bitmark)
 		}
 	case "download":
 		owner, err := client.RestoreAccountFromSeed(ownerSeed)
