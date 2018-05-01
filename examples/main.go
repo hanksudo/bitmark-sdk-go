@@ -64,7 +64,7 @@ func parseVars() {
 	subcmd.Parse(os.Args[2:])
 }
 
-func toMedatadata() map[string]string {
+func toMetaData() map[string]string {
 	parts := strings.Split(rawMetadata, ",")
 	metadata := make(map[string]string)
 	if len(parts) > 0 {
@@ -104,7 +104,7 @@ func main() {
 
 		assetInfo := &sdk.AssetInfo{
 			Name:     name,
-			Metadata: toMedatadata(),
+			Metadata: toMetaData(),
 		}
 
 		fmt.Println("Asset ID:", af.Id())
