@@ -146,7 +146,7 @@ func (s *Service) getAssetContent(url string) (string, []byte, error) {
 	defer resp.Body.Close()
 
 	if resp.Header.Get("Content-Disposition") == "" {
-		return "", nil, errors.New("No asset file")
+		return "", nil, errors.New("Missing header Content-Disposition")
 	}
 	_, params, _ := mime.ParseMediaType(resp.Header["Content-Disposition"][0])
 	filename := params["filename"]
