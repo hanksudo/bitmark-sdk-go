@@ -11,6 +11,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -303,21 +304,41 @@ func (s *Service) queryBitmarks(filter *BitmarkFilter) ([]*Bitmark, error) {
 
 	var result struct {
 		Bitmarks []*Bitmark `json:"bitmarks"`
+		Assets   []*Asset   `json:"assets"`
 	}
 	if _, err := s.submitRequest(req, &result); err != nil {
 		return nil, err
+	}
+
+	if filter.Asset {
+		for _, bitmark := range result.Bitmarks {
+			for _, asset := range result.Assets {
+				if asset.Id == bitmark.AssetId {
+					bitmark.Asset = *asset
+					break
+				}
+			}
+		}
 	}
 
 	return result.Bitmarks, nil
 }
 
 func (s *Service) getBitmark(bitmarkId string) (*Bitmark, error) {
-	req, _ := s.newAPIRequest("GET", "/v1/bitmarks/"+bitmarkId+"?provenance=true", nil)
+	v := url.Values{}
+	v.Set("provenance", "true")
+	v.Add("asset", strconv.FormatBool(true))
+	v.Add("pending", strconv.FormatBool(false))
+	req, _ := s.newAPIRequest("GET", "/v1/bitmarks/"+bitmarkId+"?"+v.Encode(), nil)
 
 	var result struct {
 		Bitmark *Bitmark
+		Asset   *Asset
 	}
 	_, err := s.submitRequest(req, &result)
+	if result.Asset != nil {
+		result.Bitmark.Asset = *result.Asset
+	}
 	return result.Bitmark, err
 }
 

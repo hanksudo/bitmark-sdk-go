@@ -201,13 +201,13 @@ func main() {
 			Asset: true,
 		}
 		bitmarks, err := client.QueryBitmarks(&filter)
-		fmt.Println(len(bitmarks))
+		fmt.Printf("Had %d bitmarks.\n", len(bitmarks))
 		if err != nil {
 			panic(err)
 		}
 
 		for _, bitmark := range bitmarks {
-			fmt.Printf("%#v", bitmark)
+			fmt.Printf("%#v\n", bitmark)
 		}
 	case "download":
 		owner, _ := client.RestoreAccountFromSeed(ownerSeed)
