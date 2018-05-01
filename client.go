@@ -98,12 +98,9 @@ func (c *Client) RestoreAccountFromSeed(s string) (*Account, error) {
 func (c *Client) IssueByAssetFile(acct *Account, af *AssetFile, quantity int, info *AssetInfo) ([]string, error) {
 	var asset *AssetRecord
 
-	if info != nil {
-		var err error
-		asset, err = NewAssetRecord(info.Name, af.Fingerprint, info.Metadata, acct)
-		if err != nil {
-			return nil, err
-		}
+	asset, err := NewAssetRecord(info.Name, af.Fingerprint, info.Metadata, acct)
+	if err != nil {
+		return nil, err
 	}
 
 	issues, err := NewIssueRecords(af.Id(), acct, quantity)
